@@ -218,6 +218,55 @@ test('candidate completes registration through interview report using the test d
     await page.getByRole('button', { name: 'Build my report' }).click();
     await expect(page.getByRole('heading', { name: 'Evidence, not just a score' })).toBeVisible({ timeout: 120_000 });
     await expect(page.getByText('Rule-based estimate')).toBeVisible({ timeout: 120_000 });
+
+    const probabilityConsoleErrors: string[] = [];
+    const probabilityPageErrors: string[] = [];
+    const onProbabilityConsole = (message: import('@playwright/test').ConsoleMessage) => {
+      if (message.type() === 'error') probabilityConsoleErrors.push(message.text());
+    };
+    const onProbabilityPageError = (error: Error) => probabilityPageErrors.push(error.message);
+    page.on('console', onProbabilityConsole);
+    page.on('pageerror', onProbabilityPageError);
+    try {
+      const probabilityResponsePromise = page.waitForResponse((response) =>
+        new URL(response.url()).pathname === '/api/v1/me/placement-probability'
+        && response.request().method() === 'GET', { timeout: 60_000 });
+      await page.getByRole('button', { name: 'Placement probability' }).click();
+      const probabilityResponse = await probabilityResponsePromise;
+      expect(probabilityResponse.status()).toBe(200);
+      const probability = await probabilityResponse.json();
+      expect(typeof probability.probability).toBe('number');
+      expect(typeof probability.weightedScore).toBe('number');
+      expect(typeof probability.dataPoints).toBe('number');
+      for (const value of Object.values(probability.components) as Array<number | null>) {
+        expect(value === null || typeof value === 'number').toBe(true);
+      }
+
+      await expect(page.getByText(String(probability.probability), { exact: true }).first()).toBeVisible();
+      await expect(page.getByText(`${probability.confidence} confidence`, { exact: true })).toBeVisible();
+      await expect(page.getByText(new RegExp(`${probability.dataPoints} of 5 signals available`))).toBeVisible();
+      await expect(page.getByText('RULE-BASED PLACEMENT ESTIMATE', { exact: true })).toBeVisible();
+
+      const simulationResponsePromise = page.waitForResponse((response) =>
+        new URL(response.url()).pathname === '/api/v1/me/placement-probability/simulate'
+        && response.request().method() === 'POST', { timeout: 60_000 });
+      await page.getByRole('button', { name: 'Stretch' }).click();
+      const simulationResponse = await simulationResponsePromise;
+      expect(simulationResponse.status()).toBe(200);
+      const simulation = await simulationResponse.json();
+      expect(typeof simulation.delta).toBe('number');
+      expect(simulation.before.probability).toBe(probability.probability);
+      expect(simulation.after.probability).toBeCloseTo(simulation.before.probability + simulation.delta, 1);
+      await expect(page.getByText(String(simulation.after.probability), { exact: true }).first()).toBeVisible();
+      const deltaLabel = `${simulation.delta >= 0 ? '+' : ''}${simulation.delta.toFixed(1)} pts vs current`;
+      await expect(page.getByText(deltaLabel, { exact: true })).toBeVisible();
+      console.info(`[e2e] Placement probability ${probability.probability} -> ${simulation.after.probability} (${deltaLabel})`);
+    } finally {
+      page.off('console', onProbabilityConsole);
+      page.off('pageerror', onProbabilityPageError);
+    }
+    expect(probabilityConsoleErrors, `probability console errors: ${probabilityConsoleErrors.join('; ')}`).toEqual([]);
+    expect(probabilityPageErrors, `probability page errors: ${probabilityPageErrors.join('; ')}`).toEqual([]);
   } finally {
     if (accessToken) {
       try {
