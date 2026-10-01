@@ -1,0 +1,37 @@
+{
+  "name": "@placeprep/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test tests/auth-tokens.test.mjs tests/rbac.test.mjs tests/resume-analyzer.test.mjs tests/assessment-scoring.test.mjs tests/interview-evaluator.test.mjs tests/postgres-connection.test.mjs tests/check-env.test.mjs",
+    "test:unit": "npx.cmd tsx --test ./tests/probability-engine.test.ts ./tests/app-errors.test.ts ./tests/auth-tokens.test.mjs ./tests/rbac.test.mjs ./tests/resume-analyzer.test.mjs ./tests/assessment-scoring.test.mjs ./tests/interview-evaluator.test.mjs ./tests/check-env.test.mjs",
+    "test:api": "node scripts/run-api-tests.mjs",
+    "test:api:failures": "node scripts/run-api-failures.mjs",
+    "test:probability": "npx.cmd tsx --test ./tests/probability-engine.test.ts",
+    "check-env": "node scripts/check-env.mjs",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:seed": "node scripts/seed.mjs"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "pg": "^8.13.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.4",
+    "@types/pg": "^8.11.11",
+    "supertest": "^7.3.0",
+    "tsx": "^4.19.3",
+    "typescript": "~5.7.3"
+  }
+}

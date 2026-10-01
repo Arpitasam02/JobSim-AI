@@ -1,0 +1,4 @@
+word embeddings
+CBOW VS SKIP GRAM
+continuous bag of work 
+window - maximum distance 

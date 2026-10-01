@@ -1,0 +1,459 @@
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ArrowDownRight,
+  ArrowRight,
+  Bell,
+  BookOpen,
+  BriefcaseBusiness,
+  CalendarDays,
+  ChevronDown,
+  CircleHelp,
+  ClipboardCheck,
+  FileText,
+  GraduationCap,
+  LayoutDashboard,
+  Menu,
+  Mic2,
+  Search,
+  Settings2,
+  Sparkles,
+  Target,
+  TrendingUp,
+  X,
+} from 'lucide-react';
+import AuthPage, { type SessionUser } from './auth/AuthPage';
+import ResumeWorkspace from './resumes/ResumeWorkspace';
+import RoleWorkspace from './roles/RoleWorkspace';
+import AssessmentWorkspace from './assessments/AssessmentWorkspace';
+import InterviewWorkspace from './interviews/InterviewWorkspace';
+
+const navigation = [
+  { label: 'Overview', icon: LayoutDashboard },
+  { label: 'My resume', icon: FileText },
+  { label: 'Role matches', icon: Target },
+  { label: 'Skill roadmap', icon: BookOpen },
+  { label: 'Mock tests', icon: ClipboardCheck },
+  { label: 'Mock interviews', icon: Mic2 },
+  { label: 'Placement probability', icon: TrendingUp },
+  { label: 'Explore jobs', icon: BriefcaseBusiness },
+];
+
+const actions = [
+  { label: 'Add a project with measurable impact', type: 'Resume', icon: FileText },
+  { label: 'Practice SQL joins and window functions', type: 'Skill gap', icon: BookOpen },
+  { label: 'Try a 20-minute technical mock interview', type: 'Practice', icon: Mic2 },
+];
+
+const roles = [
+  { name: 'Data Analyst', match: 82, skills: 'SQL, Python, data storytelling', color: 'mint' },
+  { name: 'Software Engineer', match: 74, skills: 'Java, problem solving, Git', color: 'blue' },
+  { name: 'Product Analyst', match: 68, skills: 'Analytics, communication, SQL', color: 'peach' },
+];
+
+const momentumCards = [
+  { label: 'AI story edge', value: '7.4h', note: 'focus-time this week' },
+  { label: 'Practice streak', value: '3 days', note: 'steady momentum' },
+  { label: 'Shortlist signal', value: 'High', note: 'for analytics roles' },
+];
+
+type ProbabilityScenarioKey = 'current' | 'stretch' | 'launch';
+
+type ProbabilityComponentKey = 'resume' | 'roleFit' | 'assessments' | 'interviews' | 'profile';
+
+type ProbabilityInput = Partial<Record<ProbabilityComponentKey, number | null | undefined>>;
+
+const probabilityWeights: Record<ProbabilityComponentKey, number> = {
+  resume: 25,
+  roleFit: 20,
+  assessments: 25,
+  interviews: 20,
+  profile: 10,
+};
+
+const probabilityLabels: Record<ProbabilityComponentKey, string> = {
+  resume: 'Resume score',
+  roleFit: 'Role fit',
+  assessments: 'Mock assessment',
+  interviews: 'Interview score',
+  profile: 'Profile strength',
+};
+
+const probabilityScenarios: Record<ProbabilityScenarioKey, ProbabilityInput> = {
+  current: { resume: 76, roleFit: 82, assessments: 71, interviews: 68, profile: 74 },
+  stretch: { resume: 82, roleFit: 86, assessments: 78, interviews: 74, profile: 80 },
+  launch: { resume: 85, roleFit: 88, assessments: 82, interviews: 80, profile: 84 },
+};
+
+function clampProbability(value: number) {
+  return Math.min(100, Math.max(0, Number.isFinite(value) ? value : 0));
+}
+
+function calculatePlacementProbability(input: ProbabilityInput) {
+  const available = (Object.keys(probabilityWeights) as ProbabilityComponentKey[])
+    .map((key) => ({ key, value: input[key], weight: probabilityWeights[key] }))
+    .filter(({ value }) => typeof value === 'number' && Number.isFinite(value));
+
+  if (!available.length) {
+    return { probability: 0, confidence: 'Low', weightedScore: 0, factors: [] as Array<{ key: ProbabilityComponentKey; label: string; score: number; impact: number }> };
+  }
+
+  const totalWeight = available.reduce((sum, item) => sum + item.weight, 0);
+  const weightedScore = available.reduce((sum, item) => sum + item.weight * clampProbability(item.value as number), 0) / totalWeight;
+  const logistic = 100 / (1 + Math.exp(-0.08 * (weightedScore - 50)));
+  const probability = Number(logistic.toFixed(1));
+  const confidence = available.length >= 4 ? 'High' : available.length >= 2 ? 'Medium' : 'Low';
+
+  const factors = available
+    .map(({ key, value }) => ({
+      key,
+      label: probabilityLabels[key],
+      score: clampProbability(value as number),
+      impact: 100 - clampProbability(value as number),
+    }))
+    .sort((left, right) => right.impact - left.impact)
+    .slice(0, 3);
+
+  return { probability, confidence, weightedScore: Number(weightedScore.toFixed(1)), factors };
+}
+
+function ProbabilityForecastPanel() {
+  const [scenario, setScenario] = useState<ProbabilityScenarioKey>('current');
+  const currentState = probabilityScenarios[scenario];
+  const summary = useMemo(() => calculatePlacementProbability(currentState), [currentState]);
+
+  const ringStyle = {
+    background: `conic-gradient(#2d7251 ${summary.probability * 3.6}deg, #edf1eb 0deg)`,
+  };
+
+  return (
+    <article className="panel probability-panel">
+      <div className="section-heading">
+        <div>
+          <div className="section-kicker">PLACEMENT PROBABILITY</div>
+          <h2>Shortlist outlook</h2>
+        </div>
+        <span className="pulse-badge">AI forecast</span>
+      </div>
+
+      <div className="probability-body">
+        <div className="probability-ring" style={ringStyle}>
+          <div className="probability-ring-inner">
+            <strong>{summary.probability}</strong>
+            <small>%</small>
+          </div>
+        </div>
+
+        <div className="probability-copy">
+          <div className="probability-meta">
+            <span className="probability-tag">{summary.confidence} confidence</span>
+            <span className="probability-trend">+{Math.max(0, summary.probability - 61).toFixed(1)} pts</span>
+          </div>
+          <p>You are trending toward data/analytics roles with a clear boost available if you tighten project depth and mock interview performance.</p>
+
+          <div className="projection-buttons" aria-label="Scenario selector">
+            {(['current', 'stretch', 'launch'] as ProbabilityScenarioKey[]).map((key) => (
+              <button
+                key={key}
+                className={scenario === key ? 'is-active' : ''}
+                onClick={() => setScenario(key)}
+                type="button"
+              >
+                {key === 'current' ? 'Current' : key === 'stretch' ? 'Stretch' : 'Launch'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="probability-factors" aria-label="Probability factor breakdown">
+        {summary.factors.map((factor) => (
+          <div key={factor.key} className="probability-factor-row">
+            <div className="probability-factor-meta">
+              <span>{factor.label}</span>
+              <strong>{factor.score}%</strong>
+            </div>
+            <div className="probability-factor-track">
+              <span style={{ width: `${factor.score}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+type DashboardProps = {
+  accessToken: string;
+  user: SessionUser;
+  onSignOut: () => void;
+};
+
+function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
+  const [active, setActive] = useState('Overview');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [completedActions, setCompletedActions] = useState<string[]>([]);
+
+  function toggleAction(label: string) {
+    setCompletedActions((current) =>
+      current.includes(label) ? current.filter((item) => item !== label) : [...current, label],
+    );
+  }
+
+  return (
+    <div className="app-shell">
+      <aside className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`}>
+        <a className="brand" href="#overview" onClick={() => setActive('Overview')}>
+          <span className="brand-mark"><GraduationCap size={19} strokeWidth={2.2} /></span>
+          <span>placeprep<span className="brand-ai">.ai</span></span>
+        </a>
+        <div className="workspace-label">CANDIDATE SPACE</div>
+        <div className="profile-switcher">
+          <span className="avatar">{user.name.slice(0, 2).toUpperCase()}</span>
+          <span className="profile-copy"><strong>{user.name}</strong><small>{user.email}</small></span>
+          <ChevronDown size={15} />
+        </div>
+        <nav className="main-nav" aria-label="Main navigation">
+          {navigation.map(({ label, icon: Icon }) => (
+            <button
+              className={`nav-item ${active === label ? 'nav-item-active' : ''}`}
+              key={label}
+              onClick={() => { setActive(label); setMenuOpen(false); }}
+              type="button"
+            >
+              <Icon size={17} strokeWidth={1.8} />
+              <span>{label}</span>
+              {label === 'Mock tests' && <span className="nav-count">2</span>}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-bottom">
+          <div className="week-card">
+            <div className="week-top"><span className="week-icon"><TrendingUp size={15} /></span><span>THIS WEEK</span></div>
+            <strong>3 day streak</strong>
+            <p>A little practice goes a long way.</p>
+            <div className="streak-dots" aria-label="Three practice days this week">
+              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
+                <span className={index < 3 ? 'streak-done' : ''} key={`${day}-${index}`}>{day}</span>
+              ))}
+            </div>
+          </div>
+          <button className="nav-item muted-nav" type="button" onClick={() => setActive('Settings')}><Settings2 size={17} /><span>Settings</span></button>
+          <button className="nav-item muted-nav" type="button" onClick={() => setActive('Help center')}><CircleHelp size={17} /><span>Help center</span></button>
+          <div className="sidebar-footnote">A clearer path to your next role.</div>
+        </div>
+      </aside>
+
+      {menuOpen && <button aria-label="Close navigation" className="mobile-scrim" onClick={() => setMenuOpen(false)} type="button" />}
+
+      <main className="main-content">
+        <header className="topbar">
+          <button aria-label={menuOpen ? 'Close menu' : 'Open menu'} className="icon-button menu-toggle" onClick={() => setMenuOpen(!menuOpen)} type="button">
+            {menuOpen ? <X size={19} /> : <Menu size={19} />}
+          </button>
+          <div className="breadcrumb"><span>My workspace</span><span className="crumb-divider">/</span><strong>{active}</strong></div>
+          <div className="topbar-actions">
+            <label className="search-box"><Search size={15} /><input aria-label="Search" placeholder="Search anything" /></label>
+            <button aria-label="Notifications" className="icon-button notification-button" type="button"><Bell size={18} /><i /></button>
+            <button className="top-avatar" aria-label="Sign out" onClick={onSignOut} type="button">{user.name.slice(0, 2).toUpperCase()}</button>
+          </div>
+        </header>
+
+        <div className="page-content">
+          {active === 'My resume' ? <ResumeWorkspace accessToken={accessToken} /> : active === 'Role matches' ? <RoleWorkspace accessToken={accessToken} view="roles" /> : active === 'Skill roadmap' ? <RoleWorkspace accessToken={accessToken} view="roadmap" /> : active === 'Mock tests' ? <AssessmentWorkspace accessToken={accessToken} /> : active === 'Mock interviews' ? <InterviewWorkspace accessToken={accessToken} /> : active === 'Placement probability' ? <ProbabilityForecastPanel /> : <>
+          <section className="welcome-row">
+            <div>
+              <div className="eyebrow"><span className="eyebrow-dot" /> WEDNESDAY, SEPTEMBER 30</div>
+              <h1>Good morning, {user.name.split(' ')[0]}<span className="wave">.</span></h1>
+              <p className="welcome-subtitle">You’re building momentum. Here’s where things stand.</p>
+            </div>
+            <button className="date-button" type="button"><CalendarDays size={16} /> This week <ChevronDown size={14} /></button>
+          </section>
+
+          <div className="demo-data-notice"><strong>DEMO DASHBOARD</strong><span>Metrics below are sample data until your profile is connected.</span></div>
+          <section aria-label="Placement preparation overview" className="metrics-grid">
+            <article className="metric-card resume-metric">
+              <div className="metric-head"><span>RESUME HEALTH</span><span className="metric-icon resume-icon"><FileText size={16} /></span></div>
+              <div className="score-line"><strong>76</strong><span>/ 100</span><span className="trend-pill"><ArrowDownRight size={13} /> 4 pts</span></div>
+              <div className="progress-track"><span style={{ width: '76%' }} /></div>
+              <div className="metric-foot"><span>Almost ready</span><button onClick={() => setActive('My resume')} type="button">View report <ArrowRight size={13} /></button></div>
+            </article>
+            <article className="metric-card readiness-metric">
+              <div className="metric-head"><span>INTERVIEW READINESS</span><span className="metric-icon readiness-icon"><Mic2 size={16} /></span></div>
+              <div className="score-line"><strong>Getting</strong></div>
+              <div className="readiness-label"><span className="status-dot" /> There’s room to grow</div>
+              <div className="metric-foot"><span>2 areas to work on</span><button onClick={() => setActive('Practice')} type="button">See next steps <ArrowRight size={13} /></button></div>
+            </article>
+            <article className="metric-card probability-metric">
+              <div className="metric-head"><span>ROLE FIT · DATA ANALYST</span><span className="metric-icon probability-icon"><Target size={16} /></span></div>
+              <div className="score-line"><strong>82<span className="score-percent">%</span></strong><span className="trend-pill positive-pill"><TrendingUp size={13} /> +6%</span></div>
+              <div className="metric-foot probability-foot"><span>Good alignment so far</span><button onClick={() => setActive('Placement probability')} type="button">Explore forecast <ArrowRight size={13} /></button></div>
+              <div className="metric-disclaimer">Illustrative fit estimate, not a placement guarantee.</div>
+            </article>
+          </section>
+
+          <section className="pulse-layout">
+            <ProbabilityForecastPanel />
+
+            <aside className="panel coach-panel">
+              <div className="section-kicker">NEXT AI NUDGE</div>
+              <h2>Publish an interview-ready project</h2>
+              <ul className="coach-list">
+                <li>Showcase measurable impact in one backend feature.</li>
+                <li>Document your architecture and trade-offs clearly.</li>
+                <li>Prepare a 90-second story for the strongest project.</li>
+              </ul>
+              <button className="practice-button coach-button" onClick={() => setActive('My resume')} type="button">Upgrade my project story <ArrowRight size={15} /></button>
+            </aside>
+          </section>
+
+          <div className="content-grid">
+            <section className="panel actions-panel">
+              <div className="section-heading"><div><div className="section-kicker">YOUR NEXT MOVES</div><h2>Small steps, real progress</h2></div><span className="action-counter">{completedActions.length}/{actions.length} done</span></div>
+              <div className="action-list">
+                {actions.map(({ label, type, icon: Icon }) => {
+                  const done = completedActions.includes(label);
+                  return (
+                    <button className={`action-row ${done ? 'action-complete' : ''}`} key={label} onClick={() => toggleAction(label)} type="button">
+                      <span className="action-check">{done && <span />}</span>
+                      <span className="action-icon"><Icon size={17} /></span>
+                      <span className="action-copy"><strong>{label}</strong><small>{type}</small></span>
+                      <ArrowRight className="action-arrow" size={16} />
+                    </button>
+                  );
+                })}
+              </div>
+              <button className="text-link" onClick={() => setActive('Skill roadmap')} type="button">View your full roadmap <ArrowRight size={14} /></button>
+            </section>
+
+            <section className="panel roles-panel">
+              <div className="section-heading"><div><div className="section-kicker">BASED ON YOUR PROFILE</div><h2>Roles taking shape</h2></div><button className="round-arrow" aria-label="Explore all roles" onClick={() => setActive('Role matches')} type="button"><ArrowRight size={16} /></button></div>
+              <div className="role-list">
+                {roles.map((role, index) => (
+                  <button className="role-row" key={role.name} onClick={() => setActive('Role matches')} type="button">
+                    <span className={`role-rank rank-${index + 1}`}>0{index + 1}</span>
+                    <span className="role-details"><strong>{role.name}</strong><small>{role.skills}</small></span>
+                    <span className={`match-pill ${role.color}`}>{role.match}%</span>
+                  </button>
+                ))}
+              </div>
+              <div className="roles-note"><Sparkles size={14} /><span>Build one deployed project to strengthen your top match.</span></div>
+            </section>
+          </div>
+
+          <section className="spotlight-grid" aria-label="Career momentum overview">
+            <article className="panel spotlight-card spotlight-card-emerald">
+              <div className="spotlight-header">
+                <div>
+                  <div className="section-kicker">PLACEMENT SIGNAL</div>
+                  <h2>Momentum engine</h2>
+                </div>
+                <span className="spotlight-badge">Live</span>
+              </div>
+              <div className="spotlight-body">
+                <div className="mini-ring" aria-label="Placement growth index">
+                  <span className="mini-ring-core"><strong>24</strong><small>pts</small></span>
+                </div>
+                <div className="spotlight-copy">
+                  <p>Your profile is moving faster than last week. One more polished project could convert this into a strong shortlist signal.</p>
+                  <div className="chip-stack">
+                    <span>SQL</span>
+                    <span>Storytelling</span>
+                    <span>Projects</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article className="panel spotlight-card spotlight-card-sand">
+              <div className="spotlight-header">
+                <div>
+                  <div className="section-kicker">AI COACH</div>
+                  <h2>Today’s spark</h2>
+                </div>
+              </div>
+              <div className="momentum-grid">
+                {momentumCards.map(({ label, value, note }) => (
+                  <div className="momentum-tile" key={label}>
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                    <small>{note}</small>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </section>
+
+          <section className="practice-strip">
+            <div className="practice-art"><span className="art-ring ring-one" /><span className="art-ring ring-two" /><span className="art-star"><Sparkles size={18} /></span><span className="art-dot dot-one" /><span className="art-dot dot-two" /></div>
+            <div className="practice-copy"><span className="section-kicker">YOUR PRACTICE, YOUR PACE</span><h2>Ready for a quick win?</h2><p>Pick up where you left off with a short SQL practice set.</p></div>
+            <button className="practice-button" onClick={() => setActive('Mock tests')} type="button">Continue practicing <ArrowRight size={15} /></button>
+          </section>
+
+          <footer className="page-footer"><span>PlacePrep AI <span className="footer-separator">·</span> Your progress belongs to you.</span><button onClick={() => setActive('Privacy & consent')} type="button">Privacy & consent</button></footer>
+          </>}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function App() {
+  const [session, setSession] = useState<{ accessToken: string; user: SessionUser } | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function restoreSession() {
+      if (localStorage.getItem('placeprep_has_session') !== 'true') {
+        setCheckingSession(false);
+        return;
+      }
+      try {
+        const response = await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' });
+        if (!response.ok) {
+          localStorage.removeItem('placeprep_has_session');
+          return;
+        }
+        const result = await response.json() as { accessToken?: string; user?: SessionUser };
+        if (!result.accessToken || !result.user) return;
+        const profileResponse = await fetch('/api/v1/auth/me', {
+          headers: { Authorization: `Bearer ${result.accessToken}` },
+          credentials: 'include',
+        });
+        if (!profileResponse.ok) return;
+        const profile = await profileResponse.json() as { roles?: string[] };
+        if (active) setSession({ accessToken: result.accessToken, user: { ...result.user, roles: profile.roles } });
+      } catch {
+        if (active) setSession(null);
+      } finally {
+        if (active) setCheckingSession(false);
+      }
+    }
+
+    void restoreSession();
+    return () => { active = false; };
+  }, []);
+
+  async function signOut() {
+    try {
+      await fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' });
+    } finally {
+      localStorage.removeItem('placeprep_has_session');
+      setSession(null);
+    }
+  }
+
+  if (checkingSession) {
+    return <main className="session-loading" aria-label="Checking your session"><span /></main>;
+  }
+  if (!session) {
+    return <AuthPage onAuthenticated={(accessToken, user) => {
+      localStorage.setItem('placeprep_has_session', 'true');
+      setSession({ accessToken, user });
+    }} />;
+  }
+  return <CandidateDashboard accessToken={session.accessToken} user={session.user} onSignOut={() => { void signOut(); }} />;
+}
+
+export default App;

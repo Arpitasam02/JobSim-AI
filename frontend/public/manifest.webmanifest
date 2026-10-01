@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "PlacePrep AI",
+  "short_name": "PlacePrep",
+  "description": "A clearer path from your current skills to your next role.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f5ef",
+  "theme_color": "#f4f5ef",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

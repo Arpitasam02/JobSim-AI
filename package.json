@@ -1,0 +1,21 @@
+{
+  "name": "placeprep-ai",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n web,api -c cyan,green \"npm:dev --workspace @placeprep/frontend\" \"npm:dev --workspace @placeprep/backend\"",
+    "build": "npm run build --workspace @placeprep/frontend && npm run build --workspace @placeprep/backend",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "verify:db": "node scripts/verify-db-suite.mjs",
+    "db:migrate": "npm run db:migrate --workspace @placeprep/backend",
+    "db:seed": "npm run db:seed --workspace @placeprep/backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

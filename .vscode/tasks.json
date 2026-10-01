@@ -1,0 +1,916 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "PlacePrep API Build Check",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npm.cmd",
+			"args": [
+				"run",
+				"build",
+				"--workspace",
+				"@placeprep/backend"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep API TypeScript Check",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep API TypeScript Check",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep Auth Unit Tests",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--test",
+				"backend/tests/auth-tokens.test.mjs"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check PostgreSQL Port",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"-e",
+				"const net=require('node:net');const s=net.connect(5432,'127.0.0.1');s.setTimeout(1500);s.on('connect',()=>{console.log('PostgreSQL port 5432 is reachable');s.end()});s.on('timeout',()=>{console.log('PostgreSQL port 5432 is not reachable');s.destroy()});s.on('error',()=>console.log('PostgreSQL port 5432 is not reachable'))"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check PostgreSQL Port",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"-e",
+				"const net=require(\"node:net\");const s=net.connect(5432,\"127.0.0.1\");s.setTimeout(1500);s.on(\"connect\",()=>{console.log(\"PostgreSQL port 5432 is reachable\");s.end()});s.on(\"timeout\",()=>{console.log(\"PostgreSQL port 5432 is not reachable\");s.destroy()});s.on(\"error\",()=>console.log(\"PostgreSQL port 5432 is not reachable\"))"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PlacePrep API TypeScript Check",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep Frontend TypeScript Check",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep Frontend TypeScript Check",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep API TypeScript Check",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep API Auth and RBAC Tests",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--test",
+				"backend/tests/auth-tokens.test.mjs",
+				"backend/tests/rbac.test.mjs"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PlacePrep Resume Analyzer Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Build API for Resume Tests",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep Resume Analyzer Tests",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--test",
+				"backend/tests/resume-analyzer.test.mjs"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PlacePrep Resume Analyzer Tests",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--test",
+				"backend/tests/resume-analyzer.test.mjs"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Resume Upload API Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Resume Upload API Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Resume Analysis API Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\HP\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Resume Analysis API Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Resume Analysis API Typecheck 2",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Resume API Integration Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Resume Workspace Frontend Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Resume Workspace API Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Auth Rotation Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Resume Security Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "PWA Frontend Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PWA Frontend Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PWA Frontend Tests",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--test",
+				"frontend/tests/pwa.test.mjs"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Role Roadmap API Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Role API Mount Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Role Workspace UI Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Role Workflow Frontend Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\HP\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Role Workflow Frontend Typecheck 2",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep API Production Compile",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep Full Unit Suite",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--test",
+				"backend/tests/auth-tokens.test.mjs",
+				"backend/tests/rbac.test.mjs",
+				"backend/tests/resume-analyzer.test.mjs",
+				"frontend/tests/pwa.test.mjs"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PlacePrep Production Frontend Build",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/vite/bin/vite.js",
+				"build",
+				"frontend",
+				"--config",
+				"frontend/vite.config.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Assessment Scoring Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Build Assessment Scoring",
+			"type": "shell",
+			"command": "C:\\Program Files\\HP\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build Assessment Scoring Retry",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Assessment Scoring Tests",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--test",
+				"backend/tests/assessment-scoring.test.mjs"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Timed Assessment API Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Timed Assessment API Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Assessment UI Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Assessment UI Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Assessment Route UI Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Assessment Route API Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Assessment UI Full Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Attempt Order Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Assessment Attempt Hardening Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Account Deletion Cleanup Check",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Account Deletion Cleanup Check",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Assessment History API Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Assessment History UI Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Assessment History UI Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep Frontend Final Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-b",
+				"frontend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep API Final Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep Unit Test Suite",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--test",
+				"backend/tests/auth-tokens.test.mjs",
+				"backend/tests/rbac.test.mjs",
+				"backend/tests/resume-analyzer.test.mjs",
+				"backend/tests/assessment-scoring.test.mjs",
+				"frontend/tests/pwa.test.mjs"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PlacePrep Backend Production Compile",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "PlacePrep Frontend Production Build",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/vite/bin/vite.js",
+				"build",
+				"frontend",
+				"--config",
+				"frontend/vite.config.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Interview Evaluator Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Text Interview API Typecheck",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build Interview Evaluator",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"-p",
+				"backend/tsconfig.json"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		}
+	]
+}

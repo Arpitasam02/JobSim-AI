@@ -1,0 +1,66 @@
+services:
+  web:
+    build:
+      context: ./frontend
+    ports:
+      - "${WEB_PORT:-5173}:80"
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      API_PORT: 4000
+      DATABASE_URL: postgresql://placeprep:placeprep@postgres:5432/placeprep
+      REDIS_URL: redis://redis:6379
+      AI_SERVICE_URL: http://ai-service:8000
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local-development-access-secret-change-me}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    ports:
+      - "${API_PORT:-4000}:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+
+  ai-service:
+    build:
+      context: ./ai-service
+    environment:
+      AI_SERVICE_PORT: 8000
+    ports:
+      - "${AI_SERVICE_PORT:-8000}:8000"
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: placeprep
+      POSTGRES_USER: placeprep
+      POSTGRES_PASSWORD: placeprep
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U placeprep -d placeprep"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:
