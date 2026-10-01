@@ -37,12 +37,21 @@ export function createApp(pool: Pool, accessSecret: string) {
       await withTransientDbRetry(() => pool.query('SELECT 1'), 'database health check');
       response.status(200).json({ status: 'ok', service: 'placeprep-api', database: 'connected' });
     } catch (error: unknown) {
-      const code = typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+      const errorCode = typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
         ? error.code
-        : 'UNKNOWN';
-      const reason = classifyDatabaseConnectionError(error);
+        : null;
+      const rawMessage = error instanceof Error
+        ? error.message
+        : typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string'
+          ? error.message
+          : String(error ?? '');
+      const message = redactErrorText(rawMessage || 'Database health check failed without an error message.');
+      const classifiedReason = classifyDatabaseConnectionError(error);
+      const reason = classifiedReason !== 'UNKNOWN'
+        ? classifiedReason
+        : errorCode ?? (rawMessage ? 'DATABASE_ERROR' : 'UNKNOWN');
 
-      console.error('Database health check failed', { reason, code, requestId: _request.requestId });
+      console.error('Database health check failed', { reason, code: errorCode, message, requestId: _request.requestId });
       response.status(503).json({
         status: 'degraded',
         service: 'placeprep-api',

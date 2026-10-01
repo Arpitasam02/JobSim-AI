@@ -52,6 +52,12 @@ export function isTransientConnectionError(error: unknown): boolean {
   return /ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET/i.test(message);
 }
 
+function sanitizeDatabaseErrorMessage(message: string): string {
+  return message
+    .replace(/\bpostgres(?:ql)?:\/\/[^\s"'`]+/gi, '[REDACTED_CONNECTION_STRING]')
+    .replace(/\b(password|passwd|pwd|token|secret|api[_-]?key)(\s*[:=]\s*|\s+)[^\s,;"'`]+/gi, '$1$2[REDACTED]');
+}
+
 export async function withTransientDbRetry<T>(operation: () => Promise<T>, operationName: string): Promise<T> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -75,8 +81,17 @@ export async function withTransientDbRetry<T>(operation: () => Promise<T>, opera
 
 export const database = new Pool({
   ...postgresConnectionOptions(environment.DATABASE_URL),
-  max: 20,
+  max: environment.DB_POOL_MAX ?? (environment.NODE_ENV === 'test' ? 5 : 20),
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10_000,
   ssl: environment.NODE_ENV === 'production' ? { rejectUnauthorized: true } : undefined,
+});
+
+database.on('error', (error: Error & { code?: string }) => {
+  console.error('Unexpected idle database client error', {
+    code: typeof error.code === 'string' ? error.code : null,
+    message: sanitizeDatabaseErrorMessage(error.message),
+  });
 });

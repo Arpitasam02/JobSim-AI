@@ -34,6 +34,15 @@ test('test database connection rejects an identical primary URL', () => {
   );
 });
 
+test('test database connection rejects equivalent URLs with different formatting', () => {
+  const primaryUrl = 'postgres://user:primary-password@DB.EXAMPLE.TEST/app?sslmode=require';
+  const testUrl = 'postgresql://other:other-password@db.example.test:5432/app?sslmode=verify-full';
+  assert.throws(
+    () => testPostgresConnectionOptions(primaryUrl, testUrl),
+    /DATABASE_URL_TEST must point to a separate database/,
+  );
+});
+
 test('test database connection requires DATABASE_URL_TEST', () => {
   assert.throws(
     () => testPostgresConnectionOptions('postgresql://user:pass@example.test/app', undefined),

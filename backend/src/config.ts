@@ -11,6 +11,7 @@ if (!process.env.DATABASE_URL?.trim()) {
 
 const environmentSchema = z.object({
   API_PORT: z.coerce.number().int().positive().default(4000),
+  DB_POOL_MAX: z.coerce.number().int().positive().optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().url().optional(),

@@ -16,12 +16,25 @@ export function postgresConnectionOptions(connectionString, variableName = 'DATA
   };
 }
 
+function databaseTarget(connectionString) {
+  const url = new URL(connectionString);
+  return {
+    host: url.hostname.toLowerCase().replace(/\.$/, ''),
+    port: url.port || '5432',
+    database: decodeURIComponent(url.pathname.replace(/^\/+/, '')),
+  };
+}
+
 export function testPostgresConnectionOptions(primaryUrl, testUrl) {
   if (typeof testUrl !== 'string' || !testUrl.trim()) {
     throw new Error('DATABASE_URL_TEST is required. Set it in backend/.env before running integration tests.');
   }
-  if (primaryUrl && testUrl === primaryUrl) {
-    throw new Error('DATABASE_URL_TEST must point to a separate database from DATABASE_URL.');
+  if (primaryUrl) {
+    const primary = databaseTarget(primaryUrl);
+    const test = databaseTarget(testUrl);
+    if (primary.host === test.host && primary.port === test.port && primary.database === test.database) {
+      throw new Error('DATABASE_URL_TEST must point to a separate database from DATABASE_URL.');
+    }
   }
   return postgresConnectionOptions(testUrl, 'DATABASE_URL_TEST');
 }
