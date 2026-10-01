@@ -14,5 +14,10 @@ process.env.DATABASE_URL ??= testDatabaseUrl;
 process.env.NODE_ENV = 'development';
 
 export function createTestPool() {
-  return new Pool({ ...connection, max: Number(process.env.DB_POOL_MAX ?? 5) });
+  return new Pool({
+    ...connection,
+    max: Number(process.env.DB_POOL_MAX ?? 5),
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
+  });
 }

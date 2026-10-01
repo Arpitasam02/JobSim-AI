@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowDownRight,
   ArrowRight,
@@ -56,117 +56,171 @@ const momentumCards = [
   { label: 'Shortlist signal', value: 'High', note: 'for analytics roles' },
 ];
 
-type ProbabilityScenarioKey = 'current' | 'stretch' | 'launch';
+type ProbabilityScenarioKey = 'stretch' | 'launch';
 
 type ProbabilityComponentKey = 'resume' | 'roleFit' | 'assessments' | 'interviews' | 'profile';
 
-type ProbabilityInput = Partial<Record<ProbabilityComponentKey, number | null | undefined>>;
-
-const probabilityWeights: Record<ProbabilityComponentKey, number> = {
-  resume: 25,
-  roleFit: 20,
-  assessments: 25,
-  interviews: 20,
-  profile: 10,
+type ProbabilityResult = {
+  probability: number | null;
+  confidence: 'Low' | 'Medium' | 'High';
+  dataPoints: number;
+  weightedScore: number | null;
+  factors: Array<{ key: ProbabilityComponentKey; label: string; score: number; impact: number; reason: string }>;
 };
 
-const probabilityLabels: Record<ProbabilityComponentKey, string> = {
-  resume: 'Resume score',
-  roleFit: 'Role fit',
-  assessments: 'Mock assessment',
-  interviews: 'Interview score',
-  profile: 'Profile strength',
+type ProbabilitySnapshot = ProbabilityResult & {
+  role: { id: string; name: string } | null;
+  components: Record<ProbabilityComponentKey, number | null>;
 };
 
-const probabilityScenarios: Record<ProbabilityScenarioKey, ProbabilityInput> = {
-  current: { resume: 76, roleFit: 82, assessments: 71, interviews: 68, profile: 74 },
-  stretch: { resume: 82, roleFit: 86, assessments: 78, interviews: 74, profile: 80 },
-  launch: { resume: 85, roleFit: 88, assessments: 82, interviews: 80, profile: 84 },
+type ProbabilitySimulation = {
+  before: ProbabilityResult;
+  after: ProbabilityResult;
+  delta: number;
 };
 
-function clampProbability(value: number) {
-  return Math.min(100, Math.max(0, Number.isFinite(value) ? value : 0));
+const probabilityScenarioOverrides: Record<ProbabilityScenarioKey, Partial<Record<ProbabilityComponentKey, number>>> = {
+  stretch: { assessments: 85, interviews: 80 },
+  launch: { resume: 90, roleFit: 90, assessments: 90, interviews: 90, profile: 90 },
+};
+
+async function probabilityRequest<T>(path: string, accessToken: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    headers: { Authorization: `Bearer ${accessToken}`, ...(init?.headers ?? {}) },
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result?.message ?? 'Placement probability could not be loaded.');
+  return result as T;
 }
 
-function calculatePlacementProbability(input: ProbabilityInput) {
-  const available = (Object.keys(probabilityWeights) as ProbabilityComponentKey[])
-    .map((key) => ({ key, value: input[key], weight: probabilityWeights[key] }))
-    .filter(({ value }) => typeof value === 'number' && Number.isFinite(value));
+function nullableNumber(value: number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
 
-  if (!available.length) {
-    return { probability: 0, confidence: 'Low', weightedScore: 0, factors: [] as Array<{ key: ProbabilityComponentKey; label: string; score: number; impact: number }> };
+function normalizeProbabilityResult(result: ProbabilityResult): ProbabilityResult {
+  return {
+    ...result,
+    probability: nullableNumber(result.probability),
+    dataPoints: Number(result.dataPoints),
+    weightedScore: nullableNumber(result.weightedScore),
+    factors: result.factors.map((factor) => ({
+      ...factor,
+      score: Number(factor.score),
+      impact: Number(factor.impact),
+    })),
+  };
+}
+
+function ProbabilityForecastPanel({ accessToken }: { accessToken: string }) {
+  const [snapshot, setSnapshot] = useState<ProbabilitySnapshot | null>(null);
+  const [summary, setSummary] = useState<ProbabilityResult | null>(null);
+  const [scenario, setScenario] = useState<ProbabilityScenarioKey | null>(null);
+  const [delta, setDelta] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    probabilityRequest<ProbabilitySnapshot>('/api/v1/me/placement-probability', accessToken)
+      .then((result) => {
+        if (!active) return;
+        const normalized = {
+          ...result,
+          components: Object.fromEntries(Object.entries(result.components).map(([key, value]) => [key, nullableNumber(value)])) as Record<ProbabilityComponentKey, number | null>,
+          ...normalizeProbabilityResult(result),
+        };
+        setSnapshot(normalized);
+        setSummary(normalizeProbabilityResult(normalized));
+      })
+      .catch((cause: unknown) => {
+        if (active) setError(cause instanceof Error ? cause.message : 'Placement probability could not be loaded.');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [accessToken]);
+
+  async function simulate(key: ProbabilityScenarioKey) {
+    setBusy(true);
+    setError('');
+    setScenario(key);
+    try {
+      const result = await probabilityRequest<ProbabilitySimulation>('/api/v1/me/placement-probability/simulate', accessToken, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(probabilityScenarioOverrides[key]),
+      });
+      const normalized = {
+        ...result,
+        before: normalizeProbabilityResult(result.before),
+        after: normalizeProbabilityResult(result.after),
+        delta: Number(result.delta),
+      };
+      setSummary(normalized.after);
+      setScenario(key);
+      setDelta(Number.isFinite(normalized.delta) ? normalized.delta : null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'The scenario could not be simulated.');
+    } finally {
+      setBusy(false);
+    }
   }
 
-  const totalWeight = available.reduce((sum, item) => sum + item.weight, 0);
-  const weightedScore = available.reduce((sum, item) => sum + item.weight * clampProbability(item.value as number), 0) / totalWeight;
-  const logistic = 100 / (1 + Math.exp(-0.08 * (weightedScore - 50)));
-  const probability = Number(logistic.toFixed(1));
-  const confidence = available.length >= 4 ? 'High' : available.length >= 2 ? 'Medium' : 'Low';
-
-  const factors = available
-    .map(({ key, value }) => ({
-      key,
-      label: probabilityLabels[key],
-      score: clampProbability(value as number),
-      impact: 100 - clampProbability(value as number),
-    }))
-    .sort((left, right) => right.impact - left.impact)
-    .slice(0, 3);
-
-  return { probability, confidence, weightedScore: Number(weightedScore.toFixed(1)), factors };
-}
-
-function ProbabilityForecastPanel() {
-  const [scenario, setScenario] = useState<ProbabilityScenarioKey>('current');
-  const currentState = probabilityScenarios[scenario];
-  const summary = useMemo(() => calculatePlacementProbability(currentState), [currentState]);
-
   const ringStyle = {
-    background: `conic-gradient(#2d7251 ${summary.probability * 3.6}deg, #edf1eb 0deg)`,
+    background: `conic-gradient(#2d7251 ${(summary?.probability ?? 0) * 3.6}deg, #edf1eb 0deg)`,
   };
 
   return (
     <article className="panel probability-panel">
       <div className="section-heading">
         <div>
-          <div className="section-kicker">PLACEMENT PROBABILITY</div>
-          <h2>Shortlist outlook</h2>
+          <div className="section-kicker">RULE-BASED PLACEMENT ESTIMATE</div>
+          <h2>{snapshot?.role?.name ?? 'Shortlist outlook'}</h2>
         </div>
-        <span className="pulse-badge">AI forecast</span>
+        <span className="pulse-badge">Practice signal</span>
       </div>
+
+      {loading && <div className="workspace-loading" role="status">Loading placement estimate</div>}
+      {error && <div className="resume-error" role="alert">{error}</div>}
 
       <div className="probability-body">
         <div className="probability-ring" style={ringStyle}>
           <div className="probability-ring-inner">
-            <strong>{summary.probability}</strong>
-            <small>%</small>
+            <strong>{summary?.probability ?? '—'}</strong>
+            {summary?.probability !== null && summary?.probability !== undefined && <small>%</small>}
           </div>
         </div>
 
         <div className="probability-copy">
           <div className="probability-meta">
-            <span className="probability-tag">{summary.confidence} confidence</span>
-            <span className="probability-trend">+{Math.max(0, summary.probability - 61).toFixed(1)} pts</span>
+            <span className="probability-tag">{summary ? `${summary.confidence} confidence` : 'Confidence unavailable'}</span>
+            {delta !== null && <span className="probability-trend">{delta >= 0 ? '+' : ''}{delta.toFixed(1)} pts vs current</span>}
           </div>
-          <p>You are trending toward data/analytics roles with a clear boost available if you tighten project depth and mock interview performance.</p>
+          <p>{summary ? `${summary.dataPoints} of 5 signals available. This is a practice estimate, not a placement guarantee.` : 'Loading candidate signals.'}</p>
 
           <div className="projection-buttons" aria-label="Scenario selector">
-            {(['current', 'stretch', 'launch'] as ProbabilityScenarioKey[]).map((key) => (
+            {(['stretch', 'launch'] as ProbabilityScenarioKey[]).map((key) => (
               <button
                 key={key}
                 className={scenario === key ? 'is-active' : ''}
-                onClick={() => setScenario(key)}
+                disabled={loading || busy || !snapshot?.dataPoints}
+                onClick={() => { void simulate(key); }}
                 type="button"
               >
-                {key === 'current' ? 'Current' : key === 'stretch' ? 'Stretch' : 'Launch'}
+                {busy && scenario === key ? 'Calculating' : key === 'stretch' ? 'Stretch' : 'Launch'}
               </button>
             ))}
           </div>
         </div>
       </div>
 
+      {snapshot?.dataPoints === 0 && !loading && <p role="status">No scores yet. Run a resume analysis, mock assessment, or interview to start building an estimate.</p>}
+
       <div className="probability-factors" aria-label="Probability factor breakdown">
-        {summary.factors.map((factor) => (
+        {(summary?.factors ?? []).map((factor) => (
           <div key={factor.key} className="probability-factor-row">
             <div className="probability-factor-meta">
               <span>{factor.label}</span>
@@ -259,7 +313,7 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
         </header>
 
         <div className="page-content">
-          {active === 'My resume' ? <ResumeWorkspace accessToken={accessToken} /> : active === 'Role matches' ? <RoleWorkspace accessToken={accessToken} view="roles" /> : active === 'Skill roadmap' ? <RoleWorkspace accessToken={accessToken} view="roadmap" /> : active === 'Mock tests' ? <AssessmentWorkspace accessToken={accessToken} /> : active === 'Mock interviews' ? <InterviewWorkspace accessToken={accessToken} /> : active === 'Placement probability' ? <ProbabilityForecastPanel /> : <>
+          {active === 'My resume' ? <ResumeWorkspace accessToken={accessToken} /> : active === 'Role matches' ? <RoleWorkspace accessToken={accessToken} view="roles" /> : active === 'Skill roadmap' ? <RoleWorkspace accessToken={accessToken} view="roadmap" /> : active === 'Mock tests' ? <AssessmentWorkspace accessToken={accessToken} /> : active === 'Mock interviews' ? <InterviewWorkspace accessToken={accessToken} /> : active === 'Placement probability' ? <ProbabilityForecastPanel accessToken={accessToken} /> : <>
           <section className="welcome-row">
             <div>
               <div className="eyebrow"><span className="eyebrow-dot" /> WEDNESDAY, SEPTEMBER 30</div>
@@ -292,7 +346,7 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
           </section>
 
           <section className="pulse-layout">
-            <ProbabilityForecastPanel />
+            <ProbabilityForecastPanel accessToken={accessToken} />
 
             <aside className="panel coach-panel">
               <div className="section-kicker">NEXT AI NUDGE</div>

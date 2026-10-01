@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { requireAuthentication, requireRoles } from '../auth/middleware.js';
 import { environment } from '../config.js';
 import { withTransientDbRetry } from '../db.js';
+import { calculateProbability, simulateProbability, type ProbabilityInput, type ProbabilityResult } from '../probability/engine.js';
+import { buildProbabilityInputs, probabilityComponents } from '../probability/inputs.js';
 import { analyzeResume, type ParsedResume, type RoleRequirement } from '../resumes/analyzer.js';
 
 function sendError(response: Response, status: number, code: string, message: string) {
@@ -23,6 +25,79 @@ function normalizeRoles(rows: Array<{ id: string; name: string; skills: Array<{ 
     name: role.name,
     skills: role.skills.map((skill) => ({ ...skill, weight: Number(skill.weight) })),
   }));
+}
+
+const placementProbabilityQuery = z.object({ roleId: z.string().uuid().optional() });
+const probabilitySimulationBody = z.object({
+  resume: z.number().finite().min(0).max(100).optional(),
+  roleFit: z.number().finite().min(0).max(100).optional(),
+  assessments: z.number().finite().min(0).max(100).optional(),
+  interviews: z.number().finite().min(0).max(100).optional(),
+  profile: z.number().finite().min(0).max(100).optional(),
+}).strict();
+
+type ProbabilityRole = { id: string; name: string };
+
+async function loadProbabilityRole(pool: Pool, candidateId: string, requestedRoleId?: string): Promise<ProbabilityRole | null> {
+  if (requestedRoleId) {
+    const result = await pool.query('SELECT id, name FROM role_catalog WHERE id = $1', [requestedRoleId]);
+    return (result.rows[0] as ProbabilityRole | undefined) ?? null;
+  }
+  const result = await pool.query(
+    `SELECT rc.id, rc.name FROM role_fit_results rfr
+     JOIN role_catalog rc ON rc.id = rfr.role_id
+     WHERE rfr.candidate_id = $1 ORDER BY rfr.created_at DESC LIMIT 1`,
+    [candidateId],
+  );
+  return (result.rows[0] as ProbabilityRole | undefined) ?? null;
+}
+
+async function loadProbabilitySnapshot(pool: Pool, candidateId: string, role: ProbabilityRole | null) {
+  const [resumeResult, assessmentResult, interviewResult] = await Promise.all([
+    pool.query(
+      `SELECT ra.overall_score::float8 AS score FROM resume_analyses ra
+       JOIN resume_versions rv ON rv.id = ra.resume_version_id
+       JOIN resumes r ON r.id = rv.resume_id
+       WHERE r.candidate_id = $1 ORDER BY ra.created_at DESC LIMIT 1`,
+      [candidateId],
+    ),
+    pool.query(
+      `SELECT total_score::float8 AS score FROM assessment_attempts
+       WHERE candidate_id = $1 AND status IN ('submitted', 'auto_submitted', 'expired')
+         AND total_score IS NOT NULL
+       ORDER BY submitted_at DESC NULLS LAST, started_at DESC LIMIT 1`,
+      [candidateId],
+    ),
+    pool.query(
+      `SELECT e.overall_score::float8 AS score FROM interview_evaluations e
+       JOIN interview_sessions s ON s.id = e.session_id
+       WHERE s.candidate_id = $1 AND s.status = 'completed' AND e.overall_score IS NOT NULL
+       ORDER BY s.finished_at DESC NULLS LAST, e.created_at DESC LIMIT 1`,
+      [candidateId],
+    ),
+  ]);
+  const roleFitResult = role
+    ? await pool.query(
+      `SELECT fit_score::float8 AS score FROM role_fit_results
+       WHERE candidate_id = $1 AND role_id = $2 ORDER BY created_at DESC LIMIT 1`,
+      [candidateId, role.id],
+    )
+    : null;
+
+  const input = buildProbabilityInputs({
+    resume: resumeResult.rows[0]?.score,
+    roleFit: roleFitResult?.rows[0]?.score,
+    assessments: assessmentResult.rows[0]?.score,
+    interviewOverallScore: interviewResult.rows[0]?.score,
+  });
+  const result = calculateProbability(input);
+  return { input, result };
+}
+
+function apiProbabilityResult(result: ProbabilityResult) {
+  return result.dataPoints === 0
+    ? { ...result, probability: null, weightedScore: null }
+    : result;
 }
 
 async function loadRoles(pool: Pool): Promise<RoleRequirement[]> {
@@ -83,6 +158,39 @@ export function createRoleRouter(pool: Pool, accessSecret: string) {
   const router = Router();
   const authenticate = requireAuthentication(pool, accessSecret);
   const candidateOnly = requireRoles('candidate');
+
+  router.get('/placement-probability', authenticate, candidateOnly, asyncHandler(async (request, response) => {
+    const query = placementProbabilityQuery.safeParse(request.query);
+    if (!query.success) return sendError(response, 400, 'VALIDATION_ERROR', 'A valid roleId UUID is required.');
+    const candidateId = request.authenticatedUser!.id;
+    const role = await loadProbabilityRole(pool, candidateId, query.data.roleId);
+    if (query.data.roleId && !role) return sendError(response, 404, 'ROLE_NOT_FOUND', 'The selected role does not exist.');
+
+    const { input, result } = await loadProbabilitySnapshot(pool, candidateId, role);
+    response.json({
+      role,
+      components: probabilityComponents(input),
+      ...apiProbabilityResult(result),
+    });
+  }));
+
+  router.post('/placement-probability/simulate', authenticate, candidateOnly, asyncHandler(async (request, response) => {
+    const query = placementProbabilityQuery.safeParse(request.query);
+    if (!query.success) return sendError(response, 400, 'VALIDATION_ERROR', 'A valid roleId UUID is required.');
+    const body = probabilitySimulationBody.safeParse(request.body);
+    if (!body.success) return sendError(response, 400, 'VALIDATION_ERROR', 'Simulation overrides must use known component keys and finite values from 0 to 100.');
+    const candidateId = request.authenticatedUser!.id;
+    const role = await loadProbabilityRole(pool, candidateId, query.data.roleId);
+    if (query.data.roleId && !role) return sendError(response, 404, 'ROLE_NOT_FOUND', 'The selected role does not exist.');
+
+    const { input } = await loadProbabilitySnapshot(pool, candidateId, role);
+    const simulation = simulateProbability(input, body.data);
+    response.json({
+      before: apiProbabilityResult(simulation.before),
+      after: apiProbabilityResult(simulation.after),
+      delta: simulation.delta,
+    });
+  }));
 
   router.get('/role-fit', authenticate, candidateOnly, asyncHandler(async (request, response) => {
     const resume = await loadLatestResume(pool, request.authenticatedUser!.id);

@@ -19,6 +19,7 @@ const testFiles = [
   'tests/api/auth.test.mjs',
   'tests/api/rbac-matrix.test.mjs',
   'tests/api/interviews.test.mjs',
+  'tests/api/placement-probability.test.mjs',
 ];
 
 let passed = 0;
