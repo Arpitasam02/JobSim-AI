@@ -20,16 +20,20 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).then((response) => {
-      if (response.ok) void caches.open(CACHE_NAME).then((cache) => cache.put('/', response.clone()));
-      return response;
+      if (!response.ok) return response;
+      const cachedResponse = response.clone();
+      return caches.open(CACHE_NAME)
+        .then((cache) => cache.put('/', cachedResponse))
+        .then(() => response, () => response);
     }).catch(async () => (await caches.match('/')) ?? Response.error()));
     return;
   }
 
   event.respondWith(caches.match(request).then((cached) => cached ?? fetch(request).then((response) => {
-    if (response.ok && url.pathname.startsWith('/assets/')) {
-      void caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
-    }
-    return response;
+    if (!response.ok || !url.pathname.startsWith('/assets/')) return response;
+    const cachedResponse = response.clone();
+    return caches.open(CACHE_NAME)
+      .then((cache) => cache.put(request, cachedResponse))
+      .then(() => response, () => response);
   })));
 });

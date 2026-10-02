@@ -181,7 +181,9 @@ function ProbabilityForecastPanel({ accessToken, onNavigate }: { accessToken: st
   const ringStyle = {
     background: `conic-gradient(#2d7251 ${(summary?.probability ?? 0) * 3.6}deg, #edf1eb 0deg)`,
   };
-  const weakestFactor = summary?.factors.reduce((weakest, factor) => factor.score < weakest.score ? factor : weakest);
+  const weakestFactor = summary?.factors.length
+    ? summary.factors.reduce((weakest, factor) => factor.score < weakest.score ? factor : weakest)
+    : undefined;
 
   return (
     <article className="panel probability-panel">
