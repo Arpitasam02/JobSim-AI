@@ -1,8 +1,15 @@
 import { defineConfig } from '@playwright/test';
+import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { postgresDatabaseTarget } from '../../backend/src/postgres-connection.mjs';
 
 const rootDirectory = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
+dotenv.config({ path: path.join(rootDirectory, 'backend', '.env') });
+dotenv.config({ path: path.join(rootDirectory, 'backend', '.env.test'), override: true });
+if (process.env.DATABASE_URL_TEST) {
+  console.info('[e2e] Test database target:', postgresDatabaseTarget(process.env.DATABASE_URL_TEST));
+}
 const nodeCommand = `"${process.execPath}"`;
 
 export default defineConfig({

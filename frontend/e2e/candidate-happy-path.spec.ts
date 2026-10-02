@@ -246,6 +246,7 @@ test('candidate completes registration through interview report using the test d
       await expect(page.getByText(`${probability.confidence} confidence`, { exact: true })).toBeVisible();
       await expect(page.getByText(new RegExp(`${probability.dataPoints} of 5 signals available`))).toBeVisible();
       await expect(page.getByText('RULE-BASED PLACEMENT ESTIMATE', { exact: true })).toBeVisible();
+      await expect(page.getByText(/SIGNAL TO LIFT/)).toBeVisible();
 
       const simulationResponsePromise = page.waitForResponse((response) =>
         new URL(response.url()).pathname === '/api/v1/me/placement-probability/simulate'
