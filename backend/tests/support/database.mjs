@@ -4,6 +4,7 @@ import pg from 'pg';
 import { testPostgresConnectionOptions } from '../../src/postgres-connection.mjs';
 
 dotenv.config({ path: fileURLToPath(new URL('../../.env', import.meta.url)) });
+dotenv.config({ path: fileURLToPath(new URL('../../.env.test', import.meta.url)), override: true });
 
 const { Pool } = pg;
 const primaryDatabaseUrl = process.env.DATABASE_URL;

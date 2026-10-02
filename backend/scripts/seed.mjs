@@ -2,10 +2,18 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import pg from 'pg';
-import { postgresConnectionOptions, testPostgresConnectionOptions } from '../src/postgres-connection.mjs';
+import {
+  assertLocalTestDatabase,
+  postgresConnectionOptions,
+  testPostgresConnectionOptions,
+} from '../src/postgres-connection.mjs';
 
 const { Client } = pg;
+const useTestDatabase = process.argv.includes('--test');
 dotenv.config({ path: fileURLToPath(new URL('../.env', import.meta.url)) });
+if (useTestDatabase) {
+  dotenv.config({ path: fileURLToPath(new URL('../.env.test', import.meta.url)), override: true });
+}
 let client;
 
 const roleDefinitions = [
@@ -151,10 +159,13 @@ for (let index = 1; index <= 20; index += 1) {
 }
 
 async function seed() {
-  const useTestDatabase = process.argv.includes('--test');
   const connection = useTestDatabase
     ? testPostgresConnectionOptions(process.env.DATABASE_URL, process.env.DATABASE_URL_TEST)
     : postgresConnectionOptions(process.env.DATABASE_URL);
+  if (useTestDatabase) {
+    const target = assertLocalTestDatabase(process.env.DATABASE_URL_TEST, process.env.ALLOW_REMOTE_TEST_DB === 'true');
+    console.info('Test database target:', target);
+  }
   client = new Client(connection);
   await client.connect();
   await client.query('BEGIN');

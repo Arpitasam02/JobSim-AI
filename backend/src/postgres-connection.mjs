@@ -16,7 +16,7 @@ export function postgresConnectionOptions(connectionString, variableName = 'DATA
   };
 }
 
-function databaseTarget(connectionString) {
+export function postgresDatabaseTarget(connectionString) {
   const url = new URL(connectionString);
   return {
     host: url.hostname.toLowerCase().replace(/\.$/, ''),
@@ -25,13 +25,21 @@ function databaseTarget(connectionString) {
   };
 }
 
+export function assertLocalTestDatabase(testUrl, allowRemote = false) {
+  const target = postgresDatabaseTarget(testUrl);
+  if (!allowRemote && target.host !== 'localhost' && target.host !== '127.0.0.1') {
+    throw new Error('Test database must use localhost or 127.0.0.1 unless ALLOW_REMOTE_TEST_DB=true.');
+  }
+  return target;
+}
+
 export function testPostgresConnectionOptions(primaryUrl, testUrl) {
   if (typeof testUrl !== 'string' || !testUrl.trim()) {
     throw new Error('DATABASE_URL_TEST is required. Set it in backend/.env before running integration tests.');
   }
   if (primaryUrl) {
-    const primary = databaseTarget(primaryUrl);
-    const test = databaseTarget(testUrl);
+    const primary = postgresDatabaseTarget(primaryUrl);
+    const test = postgresDatabaseTarget(testUrl);
     if (primary.host === test.host && primary.port === test.port && primary.database === test.database) {
       throw new Error('DATABASE_URL_TEST must point to a separate database from DATABASE_URL.');
     }

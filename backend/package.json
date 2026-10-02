@@ -14,7 +14,12 @@
     "test:probability": "npx.cmd tsx --test ./tests/probability-engine.test.ts",
     "check-env": "node scripts/check-env.mjs",
     "db:migrate": "node scripts/migrate.mjs",
-    "db:seed": "node scripts/seed.mjs"
+    "db:seed": "node scripts/seed.mjs",
+    "db:test:up": "docker compose -f ../docker-compose.yml up -d postgres-test --wait",
+    "db:test:down": "docker compose -f ../docker-compose.yml stop postgres-test",
+    "db:migrate:test": "node scripts/migrate.mjs --test",
+    "db:seed:test": "node scripts/seed.mjs --test",
+    "db:test:reset": "node scripts/reset-test-db.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

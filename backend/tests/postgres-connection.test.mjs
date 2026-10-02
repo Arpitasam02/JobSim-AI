@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { postgresConnectionOptions, testPostgresConnectionOptions } from '../src/postgres-connection.mjs';
+import { assertLocalTestDatabase, postgresConnectionOptions, testPostgresConnectionOptions } from '../src/postgres-connection.mjs';
 
 test('PostgreSQL connection enables TLS for sslmode=require', () => {
   const options = postgresConnectionOptions('postgresql://user:pass@example.test/app?sslmode=require');
@@ -47,5 +47,20 @@ test('test database connection requires DATABASE_URL_TEST', () => {
   assert.throws(
     () => testPostgresConnectionOptions('postgresql://user:pass@example.test/app', undefined),
     /DATABASE_URL_TEST is required/,
+  );
+});
+
+test('test database refuses remote hosts unless explicitly allowed', () => {
+  assert.throws(
+    () => assertLocalTestDatabase('postgresql://user:pass@db.example.test:5432/placeprep_test'),
+    /must use localhost or 127\.0\.0\.1/,
+  );
+  assert.equal(
+    assertLocalTestDatabase('postgresql://user:pass@db.example.test:5432/placeprep_test', true).host,
+    'db.example.test',
+  );
+  assert.equal(
+    assertLocalTestDatabase('postgresql://user:pass@127.0.0.1:5433/placeprep_test').host,
+    '127.0.0.1',
   );
 });
