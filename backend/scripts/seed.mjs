@@ -307,19 +307,32 @@ async function seed() {
       const existing = await client.query('SELECT id FROM company_profiles WHERE name = $1 LIMIT 1', [companyName]);
       companyId = existing.rows[0].id;
     }
+    await client.query(
+      `INSERT INTO company_members (user_id, company_id, member_role)
+       VALUES ($1, $2, 'admin') ON CONFLICT (user_id, company_id) DO NOTHING`,
+      [seedUsers.get('recruiter:1'), companyId],
+    );
+    const roleSlug = index === 0 ? 'software-engineer' : 'data-analyst';
+    const roleResult = await client.query('SELECT id FROM role_catalog WHERE slug = $1', [roleSlug]);
     const title = index === 0 ? 'Graduate Software Engineer' : 'Junior Data Analyst';
     const jobExists = await client.query('SELECT 1 FROM jobs WHERE company_id = $1 AND title = $2 LIMIT 1', [companyId, title]);
     if (!jobExists.rowCount) {
       await client.query(
-        `INSERT INTO jobs (company_id, created_by, title, description, required_skills, minimum_cgpa, location, status)
-         VALUES ($1, $2, $3, $4, $5, 6.5, 'India', 'open')`,
+        `INSERT INTO jobs (company_id, created_by, role_id, title, description, required_skills, minimum_cgpa, location, status)
+         VALUES ($1, $2, $3, $4, $5, $6, 6.5, 'India', 'open')`,
         [
           companyId,
           seedUsers.get('recruiter:1'),
+          roleResult.rows[0]?.id ?? null,
           title,
           index === 0 ? 'Entry-level software role focused on building and testing web services.' : 'Entry-level analytics role focused on SQL, Python, and communicating data insights.',
           JSON.stringify(index === 0 ? ['Programming', 'Data Structures', 'Git'] : ['SQL', 'Python', 'Data Visualization']),
         ],
+      );
+    } else if (roleResult.rowCount) {
+      await client.query(
+        'UPDATE jobs SET role_id = COALESCE(role_id, $3) WHERE company_id = $1 AND title = $2',
+        [companyId, title, roleResult.rows[0].id],
       );
     }
   }

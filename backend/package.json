@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "tsc --noEmit -p tsconfig.json",
     "test": "node --test tests/auth-tokens.test.mjs tests/rbac.test.mjs tests/resume-analyzer.test.mjs tests/assessment-scoring.test.mjs tests/interview-evaluator.test.mjs tests/postgres-connection.test.mjs tests/check-env.test.mjs",
-    "test:unit": "npx.cmd tsx --test ./tests/probability-engine.test.ts ./tests/probability-inputs.test.ts ./tests/app-errors.test.ts ./tests/auth-tokens.test.mjs ./tests/rbac.test.mjs ./tests/resume-analyzer.test.mjs ./tests/assessment-scoring.test.mjs ./tests/interview-evaluator.test.mjs ./tests/postgres-connection.test.mjs ./tests/check-env.test.mjs",
+    "test:unit": "npx.cmd tsx --test ./tests/probability-engine.test.ts ./tests/probability-inputs.test.ts ./tests/jobs-logic.test.ts ./tests/app-errors.test.ts ./tests/auth-tokens.test.mjs ./tests/rbac.test.mjs ./tests/resume-analyzer.test.mjs ./tests/assessment-scoring.test.mjs ./tests/interview-evaluator.test.mjs ./tests/postgres-connection.test.mjs ./tests/check-env.test.mjs",
     "test:api": "node scripts/run-api-tests.mjs",
     "test:api:failures": "node scripts/run-api-failures.mjs",
     "test:probability": "npx.cmd tsx --test ./tests/probability-engine.test.ts",

@@ -26,6 +26,7 @@ import ResumeWorkspace from './resumes/ResumeWorkspace';
 import RoleWorkspace from './roles/RoleWorkspace';
 import AssessmentWorkspace from './assessments/AssessmentWorkspace';
 import InterviewWorkspace from './interviews/InterviewWorkspace';
+import { CandidateJobsWorkspace, RecruiterJobsWorkspace } from './jobs/JobWorkspaces';
 
 const navigation = [
   { label: 'Overview', icon: LayoutDashboard },
@@ -341,7 +342,7 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
         </header>
 
         <div className="page-content">
-          {active === 'My resume' ? <ResumeWorkspace accessToken={accessToken} /> : active === 'Role matches' ? <RoleWorkspace accessToken={accessToken} view="roles" /> : active === 'Skill roadmap' ? <RoleWorkspace accessToken={accessToken} view="roadmap" /> : active === 'Mock tests' ? <AssessmentWorkspace accessToken={accessToken} /> : active === 'Mock interviews' ? <InterviewWorkspace accessToken={accessToken} /> : active === 'Placement probability' ? <ProbabilityForecastPanel accessToken={accessToken} onNavigate={setActive} /> : <>
+          {active === 'Explore jobs' ? <CandidateJobsWorkspace accessToken={accessToken} onNavigate={setActive} /> : active === 'My resume' ? <ResumeWorkspace accessToken={accessToken} /> : active === 'Role matches' ? <RoleWorkspace accessToken={accessToken} view="roles" /> : active === 'Skill roadmap' ? <RoleWorkspace accessToken={accessToken} view="roadmap" /> : active === 'Mock tests' ? <AssessmentWorkspace accessToken={accessToken} /> : active === 'Mock interviews' ? <InterviewWorkspace accessToken={accessToken} /> : active === 'Placement probability' ? <ProbabilityForecastPanel accessToken={accessToken} onNavigate={setActive} /> : <>
           <section className="welcome-row">
             <div>
               <div className="eyebrow"><span className="eyebrow-dot" /> WEDNESDAY, SEPTEMBER 30</div>
@@ -479,6 +480,13 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
   );
 }
 
+function RecruiterDashboard({ accessToken, user, onSignOut }: DashboardProps) {
+  return <div className="app-shell recruiter-shell">
+    <header className="recruiter-topbar"><a className="brand" href="#jobs"><span className="brand-mark"><GraduationCap size={19} strokeWidth={2.2} /></span><span>placeprep<span className="brand-ai">.ai</span></span></a><span className="recruiter-account">{user.name} · Recruiter</span><button className="top-avatar" aria-label="Sign out" onClick={onSignOut} type="button">{user.name.slice(0, 2).toUpperCase()}</button></header>
+    <main className="recruiter-main"><RecruiterJobsWorkspace accessToken={accessToken} /></main>
+  </div>;
+}
+
 function App() {
   const [session, setSession] = useState<{ accessToken: string; user: SessionUser } | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -534,6 +542,9 @@ function App() {
       localStorage.setItem('placeprep_has_session', 'true');
       setSession({ accessToken, user });
     }} />;
+  }
+  if (session.user.roles?.includes('recruiter')) {
+    return <RecruiterDashboard accessToken={session.accessToken} user={session.user} onSignOut={() => { void signOut(); }} />;
   }
   return <CandidateDashboard accessToken={session.accessToken} user={session.user} onSignOut={() => { void signOut(); }} />;
 }

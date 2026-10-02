@@ -96,6 +96,17 @@ test('candidate completes registration through interview report using the test d
     expect(analysis.topRoles.length).toBeGreaterThan(0);
     await expect(page.getByRole('heading', { name: 'Resume health' })).toBeVisible({ timeout: 120_000 });
 
+    await page.getByRole('button', { name: 'Explore jobs' }).click();
+    await expect(page.getByRole('heading', { name: 'Explore jobs' })).toBeVisible({ timeout: 120_000 });
+    await expect(page.getByText('Graduate Software Engineer', { exact: true })).toBeVisible({ timeout: 120_000 });
+    const applicationResponsePromise = page.waitForResponse((response) =>
+      /\/api\/v1\/jobs\/[0-9a-f-]+\/apply$/.test(new URL(response.url()).pathname)
+      && response.request().method() === 'POST', { timeout: 120_000 });
+    await page.getByRole('button', { name: 'Apply', exact: true }).first().click();
+    const applicationResponse = await applicationResponsePromise;
+    expect(applicationResponse.status()).toBe(201);
+    await expect(page.getByText('Your application has been submitted.', { exact: true })).toBeVisible({ timeout: 30_000 });
+
     await page.getByRole('button', { name: 'Role matches' }).click();
     await expect(page.getByRole('heading', { name: 'Find the roles within reach.' })).toBeVisible({ timeout: 120_000 });
     await expect(page.getByText('YOUR TOP MATCHES')).toBeVisible({ timeout: 120_000 });
