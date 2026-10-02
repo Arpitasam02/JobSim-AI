@@ -34,6 +34,27 @@ npm.cmd run db:test:reset --workspace @placeprep/backend
 
 ## 3. Run the API and E2E tests
 
+The Playwright E2E requires the AI resume parser to return HTTP 2xx from `http://127.0.0.1:8000/health`. Start it before running E2E using either option:
+
+Docker Compose:
+
+```powershell
+Set-Location 'C:\Users\HP\OneDrive\Desktop\JobSim AI'
+docker compose up -d ai-service --wait
+```
+
+Local Python service:
+
+```powershell
+Set-Location 'C:\Users\HP\OneDrive\Desktop\JobSim AI\ai-service'
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r .\requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+The E2E API startup checks the configured `AI_SERVICE_URL` (default `http://localhost:8000`) and stops with these instructions if `/health` is unreachable or non-2xx. It does not start the AI service automatically.
+
 ```powershell
 Set-Location 'C:\Users\HP\OneDrive\Desktop\JobSim AI'
 $env:NODE_OPTIONS = '--dns-result-order=ipv4first'

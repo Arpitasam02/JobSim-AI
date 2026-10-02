@@ -77,6 +77,8 @@ Confirm it ends with a final summary showing passed / failed / skipped counts.
 
 Terminal 7: Playwright validation
 
+The E2E suite requires the AI resume parser to return HTTP 2xx from `http://127.0.0.1:8000/health`. Start it first with `docker compose up -d ai-service --wait`, or follow the venv/uvicorn commands in Terminal 1 above. Playwright checks the configured `AI_SERVICE_URL` before starting the test API and fails early with both startup options if the health check fails; it does not start the service.
+
 ```powershell
 Set-Location 'C:\Users\HP\OneDrive\Desktop\JobSim AI'
 .\node_modules\.bin\playwright.cmd test --config .\frontend\e2e\playwright.config.ts
