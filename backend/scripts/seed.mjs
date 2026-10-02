@@ -60,7 +60,12 @@ const permissionDefinitions = {
 
 const catalogRoles = [
   { slug: 'software-engineer', name: 'Software Engineer', description: 'Build, test, and maintain software applications.', skills: ['Programming', 'Data Structures', 'Algorithms', 'Git', 'SQL'] },
+  { slug: 'frontend-developer', name: 'Frontend Developer', description: 'Build accessible, responsive web interfaces.', skills: ['JavaScript', 'React', 'Programming', 'Git', 'Communication'] },
+  { slug: 'backend-developer', name: 'Backend Developer', description: 'Build APIs, services, and data-backed systems.', skills: ['Programming', 'SQL', 'Node.js', 'Data Structures', 'Git'] },
   { slug: 'data-analyst', name: 'Data Analyst', description: 'Turn data into reliable analysis and useful decisions.', skills: ['SQL', 'Python', 'Statistics', 'Data Visualization', 'Communication'] },
+  { slug: 'data-scientist', name: 'Data Scientist', description: 'Use statistics and machine learning to answer complex questions.', skills: ['Python', 'Statistics', 'Machine Learning', 'SQL', 'Data Visualization'] },
+  { slug: 'devops-engineer', name: 'DevOps Engineer', description: 'Automate reliable software delivery and cloud operations.', skills: ['Docker', 'Cloud Computing', 'Programming', 'Linux', 'Git'] },
+  { slug: 'cybersecurity-analyst', name: 'Cybersecurity Analyst', description: 'Identify security risks and protect systems and data.', skills: ['Cybersecurity', 'Linux', 'Programming', 'Networking', 'Communication'] },
   { slug: 'qa-engineer', name: 'QA Engineer', description: 'Design and execute tests to improve software quality.', skills: ['Testing', 'Automation', 'Programming', 'Git', 'Communication'] },
 ];
 
@@ -68,6 +73,8 @@ const skills = [
   ['Programming', 'language'], ['Data Structures', 'computer_science'], ['Algorithms', 'computer_science'],
   ['Git', 'tool'], ['SQL', 'database'], ['Python', 'language'], ['Statistics', 'analytics'],
   ['Data Visualization', 'analytics'], ['Communication', 'soft_skill'], ['Testing', 'quality'], ['Automation', 'quality'],
+  ['JavaScript', 'language'], ['React', 'framework'], ['Node.js', 'framework'], ['Machine Learning', 'analytics'],
+  ['Docker', 'tool'], ['Cloud Computing', 'tool'], ['Linux', 'tool'], ['Cybersecurity', 'computer_science'], ['Networking', 'computer_science'],
 ];
 
 const learningResources = [
@@ -318,8 +325,8 @@ async function seed() {
     const jobExists = await client.query('SELECT 1 FROM jobs WHERE company_id = $1 AND title = $2 LIMIT 1', [companyId, title]);
     if (!jobExists.rowCount) {
       await client.query(
-        `INSERT INTO jobs (company_id, created_by, role_id, title, description, required_skills, minimum_cgpa, location, status)
-         VALUES ($1, $2, $3, $4, $5, $6, 6.5, 'India', 'open')`,
+        `INSERT INTO jobs (company_id, created_by, role_id, title, description, required_skills, minimum_cgpa, location, status, experience_level)
+         VALUES ($1, $2, $3, $4, $5, $6, 6.5, 'India', 'open', 'freshers')`,
         [
           companyId,
           seedUsers.get('recruiter:1'),
@@ -331,7 +338,7 @@ async function seed() {
       );
     } else if (roleResult.rowCount) {
       await client.query(
-        'UPDATE jobs SET role_id = COALESCE(role_id, $3) WHERE company_id = $1 AND title = $2',
+        "UPDATE jobs SET role_id = COALESCE(role_id, $3), experience_level = 'freshers' WHERE company_id = $1 AND title = $2",
         [companyId, title, roleResult.rows[0].id],
       );
     }

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  ArrowDownRight,
   ArrowRight,
   Bell,
   BookOpen,
@@ -27,6 +26,7 @@ import RoleWorkspace from './roles/RoleWorkspace';
 import AssessmentWorkspace from './assessments/AssessmentWorkspace';
 import InterviewWorkspace from './interviews/InterviewWorkspace';
 import { CandidateJobsWorkspace, RecruiterJobsWorkspace } from './jobs/JobWorkspaces';
+import StudyAssistant from './assistant/StudyAssistant';
 
 const navigation = [
   { label: 'Overview', icon: LayoutDashboard },
@@ -45,17 +45,44 @@ const actions = [
   { label: 'Try a 20-minute technical mock interview', type: 'Practice', icon: Mic2 },
 ];
 
-const roles = [
-  { name: 'Data Analyst', match: 82, skills: 'SQL, Python, data storytelling', color: 'mint' },
-  { name: 'Software Engineer', match: 74, skills: 'Java, problem solving, Git', color: 'blue' },
-  { name: 'Product Analyst', match: 68, skills: 'Analytics, communication, SQL', color: 'peach' },
-];
+type DashboardData = { resumeHealth: number; dataAnalystFit: number; hasAnalyzedResume: boolean };
+type DashboardRoleMatch = { roleName: string; score: number; explanation: string };
+type DailyProgress = Record<string, string[]>;
 
-const momentumCards = [
-  { label: 'AI story edge', value: '7.4h', note: 'focus-time this week' },
-  { label: 'Practice streak', value: '3 days', note: 'steady momentum' },
-  { label: 'Shortlist signal', value: 'High', note: 'for analytics roles' },
-];
+function localDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function readDailyProgress(userId: string): DailyProgress {
+  try {
+    const value = localStorage.getItem(`placeprep_daily_progress:${userId}`);
+    return value ? JSON.parse(value) as DailyProgress : {};
+  } catch {
+    return {};
+  }
+}
+
+function countStreak(progress: DailyProgress) {
+  const cursor = new Date();
+  if (!progress[localDateKey(cursor)]?.length) cursor.setDate(cursor.getDate() - 1);
+  let streak = 0;
+  while (streak < 365 && progress[localDateKey(cursor)]?.length) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function getWeekProgress(progress: DailyProgress) {
+  const today = new Date();
+  const mondayOffset = (today.getDay() + 6) % 7;
+  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - mondayOffset);
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index);
+    const key = localDateKey(date);
+    return { key, date, label: date.toLocaleDateString(undefined, { weekday: 'narrow' }), done: Boolean(progress[key]?.length) };
+  });
+}
 
 type ProbabilityScenarioKey = 'stretch' | 'launch';
 
@@ -276,13 +303,59 @@ type DashboardProps = {
 function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
   const [active, setActive] = useState('Overview');
   const [menuOpen, setMenuOpen] = useState(false);
-  const [completedActions, setCompletedActions] = useState<string[]>([]);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [dailyProgress, setDailyProgress] = useState<DailyProgress>(() => readDailyProgress(user.id));
+  const [dashboardData, setDashboardData] = useState<DashboardData>({ resumeHealth: 0, dataAnalystFit: 0, hasAnalyzedResume: false });
+  const [roleMatches, setRoleMatches] = useState<DashboardRoleMatch[]>([]);
+  const [dashboardError, setDashboardError] = useState('');
+  const todayKey = localDateKey(new Date());
+  const completedActions = dailyProgress[todayKey] ?? [];
+  const streak = countStreak(dailyProgress);
+  const weekProgress = getWeekProgress(dailyProgress);
+
+  useEffect(() => {
+    let active = true;
+    const headers = { Authorization: `Bearer ${accessToken}` };
+    Promise.all([
+      fetch('/api/v1/me/dashboard', { headers }).then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message ?? 'Candidate scores could not be loaded.');
+        return result as DashboardData;
+      }),
+      fetch('/api/v1/me/role-fit', { headers }).then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message ?? 'Role matches could not be loaded.');
+        return result as { roleMatches?: DashboardRoleMatch[] };
+      }),
+    ]).then(([summary, matches]) => {
+      if (!active) return;
+      setDashboardData(summary);
+      setRoleMatches(summary.hasAnalyzedResume ? matches.roleMatches ?? [] : []);
+      setDashboardError('');
+    }).catch((cause: unknown) => {
+      if (active) setDashboardError(cause instanceof Error ? cause.message : 'Your dashboard data could not be loaded.');
+    });
+    return () => { active = false; };
+  }, [accessToken]);
 
   function toggleAction(label: string) {
-    setCompletedActions((current) =>
-      current.includes(label) ? current.filter((item) => item !== label) : [...current, label],
-    );
+    const progress = readDailyProgress(user.id);
+    const current = progress[todayKey] ?? [];
+    const updated = {
+      ...progress,
+      [todayKey]: current.includes(label) ? current.filter((item) => item !== label) : [...current, label],
+    };
+    localStorage.setItem(`placeprep_daily_progress:${user.id}`, JSON.stringify(updated));
+    setDailyProgress(updated);
   }
+
+  const resumeScore = dashboardData.resumeHealth;
+  const dataAnalystFit = dashboardData.dataAnalystFit;
+  const dailyEncouragement = completedActions.length === actions.length
+    ? 'You completed today’s plan. Come back tomorrow to keep your streak going.'
+    : completedActions.length
+      ? `${actions.length - completedActions.length} small step${actions.length - completedActions.length === 1 ? '' : 's'} left for today.`
+      : 'Pick one small task to get today’s momentum started.';
 
   return (
     <div className="app-shell">
@@ -316,14 +389,14 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
             <div className="week-top"><span className="week-icon"><TrendingUp size={15} /></span><span>THIS WEEK</span></div>
             <strong>3 day streak</strong>
             <p>A little practice goes a long way.</p>
-            <div className="streak-dots" aria-label="Three practice days this week">
-              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
-                <span className={index < 3 ? 'streak-done' : ''} key={`${day}-${index}`}>{day}</span>
+            <div className="streak-dots" aria-label="Activity this week">
+              {weekProgress.map((day) => (
+                <span className={day.done ? 'streak-done' : ''} key={day.key} title={day.date.toLocaleDateString()}>{day.label}</span>
               ))}
             </div>
           </div>
           <button className="nav-item muted-nav" type="button" onClick={() => setActive('Settings')}><Settings2 size={17} /><span>Settings</span></button>
-          <button className="nav-item muted-nav" type="button" onClick={() => setActive('Help center')}><CircleHelp size={17} /><span>Help center</span></button>
+          <button className="nav-item muted-nav" type="button" onClick={() => setAssistantOpen((open) => !open)}><CircleHelp size={17} /><span>Help assistant</span></button>
           <div className="sidebar-footnote">A clearer path to your next role.</div>
         </div>
       </aside>
@@ -354,13 +427,13 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
             <button className="date-button" type="button"><CalendarDays size={16} /> This week <ChevronDown size={14} /></button>
           </section>
 
-          <div className="demo-data-notice"><strong>DEMO DASHBOARD</strong><span>Metrics below are sample data until your profile is connected.</span></div>
+          {dashboardError && <div className="resume-error" role="alert">{dashboardError}</div>}
           <section aria-label="Placement preparation overview" className="metrics-grid">
             <article className="metric-card resume-metric">
               <div className="metric-head"><span>RESUME HEALTH</span><span className="metric-icon resume-icon"><FileText size={16} /></span></div>
-              <div className="score-line"><strong>76</strong><span>/ 100</span><span className="trend-pill"><ArrowDownRight size={13} /> 4 pts</span></div>
-              <div className="progress-track"><span style={{ width: '76%' }} /></div>
-              <div className="metric-foot"><span>Almost ready</span><button onClick={() => setActive('My resume')} type="button">View report <ArrowRight size={13} /></button></div>
+              <div className="score-line"><strong>{resumeScore}</strong><span>/ 100</span></div>
+              <div className="progress-track"><span style={{ width: `${resumeScore}%` }} /></div>
+              <div className="metric-foot"><span>{dashboardData.hasAnalyzedResume ? resumeScore >= 80 ? 'Ready to apply' : resumeScore >= 65 ? 'Nearly ready' : 'Keep improving' : 'Add a resume to begin'}</span><button onClick={() => setActive('My resume')} type="button">{dashboardData.hasAnalyzedResume ? 'View report' : 'Add resume'} <ArrowRight size={13} /></button></div>
             </article>
             <article className="metric-card readiness-metric">
               <div className="metric-head"><span>INTERVIEW READINESS</span><span className="metric-icon readiness-icon"><Mic2 size={16} /></span></div>
@@ -370,9 +443,8 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
             </article>
             <article className="metric-card probability-metric">
               <div className="metric-head"><span>ROLE FIT · DATA ANALYST</span><span className="metric-icon probability-icon"><Target size={16} /></span></div>
-              <div className="score-line"><strong>82<span className="score-percent">%</span></strong><span className="trend-pill positive-pill"><TrendingUp size={13} /> +6%</span></div>
-              <div className="metric-foot probability-foot"><span>Good alignment so far</span><button onClick={() => setActive('Placement probability')} type="button">Explore forecast <ArrowRight size={13} /></button></div>
-              <div className="metric-disclaimer">Illustrative fit estimate, not a placement guarantee.</div>
+              <div className="score-line"><strong>{dataAnalystFit}<span className="score-percent">%</span></strong></div>
+              <div className="metric-foot probability-foot"><span>{dashboardData.hasAnalyzedResume ? 'Based on your latest resume analysis' : 'Analyze a resume to calculate fit'}</span><button onClick={() => setActive('Role matches')} type="button">Explore roles <ArrowRight size={13} /></button></div>
             </article>
           </section>
 
@@ -413,15 +485,15 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
             <section className="panel roles-panel">
               <div className="section-heading"><div><div className="section-kicker">BASED ON YOUR PROFILE</div><h2>Roles taking shape</h2></div><button className="round-arrow" aria-label="Explore all roles" onClick={() => setActive('Role matches')} type="button"><ArrowRight size={16} /></button></div>
               <div className="role-list">
-                {roles.map((role, index) => (
-                  <button className="role-row" key={role.name} onClick={() => setActive('Role matches')} type="button">
+                {roleMatches.slice(0, 5).map((role, index) => (
+                  <button className="role-row" key={role.roleName} onClick={() => setActive('Role matches')} type="button">
                     <span className={`role-rank rank-${index + 1}`}>0{index + 1}</span>
-                    <span className="role-details"><strong>{role.name}</strong><small>{role.skills}</small></span>
-                    <span className={`match-pill ${role.color}`}>{role.match}%</span>
+                    <span className="role-details"><strong>{role.roleName}</strong><small>{role.explanation}</small></span>
+                    <span className="match-pill mint">{role.score}%</span>
                   </button>
                 ))}
               </div>
-              <div className="roles-note"><Sparkles size={14} /><span>Build one deployed project to strengthen your top match.</span></div>
+              {roleMatches.length === 0 ? <p className="resume-empty">Upload and analyze your resume to see role matches.</p> : <div className="roles-note"><Sparkles size={14} /><span>Matches update from your latest analyzed resume.</span></div>}
             </section>
           </div>
 
@@ -435,15 +507,14 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
                 <span className="spotlight-badge">Live</span>
               </div>
               <div className="spotlight-body">
-                <div className="mini-ring" aria-label="Placement growth index">
-                  <span className="mini-ring-core"><strong>24</strong><small>pts</small></span>
+                <div className="mini-ring" aria-label="Current practice streak">
+                  <span className="mini-ring-core"><strong>{streak}</strong><small>days</small></span>
                 </div>
                 <div className="spotlight-copy">
-                  <p>Your profile is moving faster than last week. One more polished project could convert this into a strong shortlist signal.</p>
+                  <p>{dailyEncouragement}</p>
                   <div className="chip-stack">
-                    <span>SQL</span>
-                    <span>Storytelling</span>
-                    <span>Projects</span>
+                    <span>{completedActions.length}/{actions.length} tasks today</span>
+                    <span>{streak} day streak</span>
                   </div>
                 </div>
               </div>
@@ -457,13 +528,8 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
                 </div>
               </div>
               <div className="momentum-grid">
-                {momentumCards.map(({ label, value, note }) => (
-                  <div className="momentum-tile" key={label}>
-                    <span>{label}</span>
-                    <strong>{value}</strong>
-                    <small>{note}</small>
-                  </div>
-                ))}
+                <div className="momentum-tile"><span>DAILY TASKS</span><strong>{completedActions.length}/{actions.length}</strong><small>{dailyEncouragement}</small></div>
+                <div className="momentum-tile"><span>STREAK</span><strong>{streak} day{streak === 1 ? '' : 's'}</strong><small>Keep the habit gentle and steady.</small></div>
               </div>
             </article>
           </section>
@@ -478,6 +544,7 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
           </>}
         </div>
       </main>
+      <StudyAssistant open={assistantOpen} onOpen={() => setAssistantOpen(true)} onClose={() => setAssistantOpen(false)} onNavigate={setActive} />
     </div>
   );
 }

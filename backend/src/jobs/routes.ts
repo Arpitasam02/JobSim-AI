@@ -6,6 +6,7 @@ import { isEligibleForJob, redactBlindApplicant } from './logic.js';
 
 const jobColumns = `
   j.id, j.company_id, j.role_id, j.title, j.description, j.required_skills,
+  j.experience_level,
   j.minimum_cgpa::float8 AS minimum_cgpa, j.eligible_branches, j.graduation_years,
   j.location, j.package_min::float8 AS package_min, j.package_max::float8 AS package_max,
   j.deadline, j.rounds, j.status, j.blind_screening, j.created_at, j.updated_at`;
@@ -30,6 +31,7 @@ const jobFieldsSchema = z.object({
   deadline: z.string().datetime().nullable().optional(),
   rounds: z.array(z.string().trim().min(1).max(100)).max(12).default([]),
   status: z.enum(['draft', 'open', 'closed']).default('draft'),
+  experienceLevel: z.enum(['any', 'freshers', 'experienced']).default('any'),
   blindScreening: z.boolean().default(false),
 }).strict();
 
@@ -111,6 +113,7 @@ export function createCandidateJobsRouter(pool: Pool, accessSecret: string) {
         pool.query(
           `SELECT j.id, j.title, j.description, j.required_skills, j.role_id,
             rc.name AS role_name, cp_company.name AS company_name,
+            j.experience_level,
             j.minimum_cgpa::float8 AS minimum_cgpa, j.eligible_branches, j.graduation_years,
             j.location, j.package_min::float8 AS package_min, j.package_max::float8 AS package_max,
             j.deadline, j.rounds,
@@ -244,12 +247,13 @@ export function createRecruiterJobsRouter(pool: Pool, accessSecret: string) {
           company_id, created_by, role_id, title, description, required_skills, minimum_cgpa,
           eligible_branches, graduation_years, location, package_min, package_max, deadline,
           rounds, status, blind_screening
-        ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16)
+          , experience_level
+        ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17)
         RETURNING id`,
         [job.companyId, userId, job.roleId ?? null, job.title, job.description, JSON.stringify(job.requiredSkills),
           job.minimumCgpa ?? null, job.eligibleBranches, job.graduationYears, job.location ?? null,
           job.packageMin ?? null, job.packageMax ?? null, job.deadline ?? null,
-          JSON.stringify(job.rounds), job.status, job.blindScreening],
+          JSON.stringify(job.rounds), job.status, job.blindScreening, job.experienceLevel],
       );
       const created = await recruiterJob(pool, userId, result.rows[0].id);
       response.status(201).json({ job: created.rows[0] });
@@ -313,6 +317,7 @@ export function createRecruiterJobsRouter(pool: Pool, accessSecret: string) {
         ['location', 'location', false], ['packageMin', 'package_min', false], ['packageMax', 'package_max', false],
         ['deadline', 'deadline', false], ['rounds', 'rounds', true], ['status', 'status', false],
         ['blindScreening', 'blind_screening', false],
+        ['experienceLevel', 'experience_level', false],
       ];
       for (const [key, column, json] of fields) {
         const value = parsed.data[key];

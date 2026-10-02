@@ -25,7 +25,7 @@ function asyncHandler(handler: RequestHandler): RequestHandler {
   };
 }
 
-function buildQuestions(type: string, roleName: string, skills: string[], project: string | null) {
+function buildQuestions(type: string, roleName: string, skills: string[], project: string | null, difficulty: 'easy' | 'medium' | 'hard') {
   const questions: Array<{ question: string; outline: string }> = [];
   if (type === 'project_deep_dive' || type === 'full_simulation') {
     if (project) {
@@ -43,8 +43,21 @@ function buildQuestions(type: string, roleName: string, skills: string[], projec
     questions.push({ question: 'A project is behind schedule and a key requirement is unclear. How would you decide what to do first?', outline: 'Clarify constraints, identify impact and dependencies, communicate tradeoffs, and propose a testable next step.' });
   }
   if (type === 'technical' || type === 'project_deep_dive' || type === 'full_simulation') {
+    const isComputerScienceRole = /software|computer|developer|engineer|qa|quality/i.test(roleName)
+      || skills.some((skill) => /programming|data structures|algorithms/i.test(skill));
+    if (isComputerScienceRole) {
+      const dsaQuestions = {
+        easy: 'Given an unsorted array, explain how you would find its largest value. What is the time complexity, and how would you handle an empty array?',
+        medium: 'Given an array of integers and a target, describe an algorithm that finds two values adding to the target. Compare a hash map with a nested-loop solution for time and space.',
+        hard: 'Given a directed graph of course prerequisites, explain how to detect a cycle and produce a valid order when one exists. Discuss the algorithm and its complexity.',
+      };
+      questions.push({
+        question: `${difficulty}-level DSA for ${roleName}: ${dsaQuestions[difficulty]}`,
+        outline: 'State the algorithm, explain the data structure and edge cases, then analyze time and space complexity. For harder levels, discuss why the approach is correct.',
+      });
+    }
     for (const skill of skills.slice(0, 3)) {
-      questions.push({ question: `How have you used ${skill} in a project, and what tradeoff or limitation did you encounter?`, outline: `Explain the ${skill} concept, where you applied it, alternatives you considered, and how you validated the choice.` });
+      questions.push({ question: `At ${difficulty} level, explain a ${skill} concept relevant to ${roleName}. How would you apply it, and what tradeoff or limitation should you consider?`, outline: `Explain the ${skill} concept at ${difficulty} depth, give a practical application, compare alternatives, and describe how you would validate the choice.` });
     }
     if (!skills.length) {
       questions.push({ question: `What fundamentals are most important for an entry-level ${roleName} role, and how have you practiced them?`, outline: 'Name relevant fundamentals, describe a practice example, and explain how you assessed your understanding.' });
@@ -102,7 +115,7 @@ export function createInterviewRouter(pool: Pool, accessSecret: string) {
     const project = parsed.data.type === 'project_deep_dive' || parsed.data.type === 'full_simulation'
       ? parsedResume?.projects?.[0]?.replace(/[\r\n\t]/g, ' ').slice(0, 240) ?? null
       : null;
-    const questions = buildQuestions(parsed.data.type, roleName, skills, project);
+    const questions = buildQuestions(parsed.data.type, roleName, skills, project, parsed.data.difficulty);
     const client = await pool.connect();
     try {
       await client.query('BEGIN');

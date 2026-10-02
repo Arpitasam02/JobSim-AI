@@ -29,6 +29,7 @@ test('candidate can create, answer, finish, and read a text interview report', a
   assert.equal(snapshot.status, 200);
   assert.equal(snapshot.body.session.status, 'in_progress');
   assert.ok(snapshot.body.currentQuestion?.question);
+  assert.match(snapshot.body.currentQuestion.question, /medium-level DSA for Software Engineer/);
 
   const wrongOrder = await withAuth(request(app).post(`${sessionPath}/answer`), candidate.token).send({
     questionId: randomUUID(), answer: 'I designed and tested a practical solution.'

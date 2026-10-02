@@ -28,7 +28,7 @@ function getErrorMessage(body: AuthResponse, fallback: string) {
 export default function AuthPage({ onAuthenticated }: AuthPageProps) {
   const [mode, setMode] = useState<AuthMode>('login');
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => localStorage.getItem('placeprep_last_email') ?? '');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'candidate' | 'recruiter'>('candidate');
   const [rememberMe, setRememberMe] = useState(false);
@@ -159,7 +159,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
           ) : (
             <form className="auth-form" onSubmit={submit}>
               {mode === 'register' && <label>Name<input autoComplete="name" maxLength={120} onChange={(event) => setName(event.target.value)} required value={name} /></label>}
-              {(mode === 'login' || mode === 'register' || mode === 'forgot') && <label>Email address<input autoComplete="email" maxLength={254} onChange={(event) => setEmail(event.target.value)} required type="email" value={email} /></label>}
+              {(mode === 'login' || mode === 'register' || mode === 'forgot') && <label>Email address<input autoComplete="email" maxLength={254} onChange={(event) => { setEmail(event.target.value); localStorage.setItem('placeprep_last_email', event.target.value); }} required type="email" value={email} /></label>}
               {mode === 'register' && (
                 <label>Join as
                   <select onChange={(event) => setRole(event.target.value as 'candidate' | 'recruiter')} value={role}>

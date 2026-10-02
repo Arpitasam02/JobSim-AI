@@ -69,7 +69,7 @@ export default function InterviewWorkspace({ accessToken }: Props) {
   const [interviews, setInterviews] = useState<InterviewSummary[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [kind, setKind] = useState<InterviewKind>('technical');
-  const [roleId, setRoleId] = useState('');
+  const [roleId, setRoleId] = useState(() => localStorage.getItem('placeprep_interview_role_id') ?? '');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [session, setSession] = useState<InterviewSession | null>(null);
   const [questionCount, setQuestionCount] = useState(0);
@@ -93,6 +93,8 @@ export default function InterviewWorkspace({ accessToken }: Props) {
       if (!active) return;
       setInterviews(interviewResult.interviews ?? []);
       setRoles(roleResult.roles ?? []);
+      const requestedRoleId = localStorage.getItem('placeprep_interview_role_id');
+      if (requestedRoleId && roleResult.roles.some((role) => role.id === requestedRoleId)) setRoleId(requestedRoleId);
     }).catch((cause: unknown) => {
       if (active) setError(cause instanceof Error ? cause.message : 'Interview workspace could not be loaded.');
     }).finally(() => { if (active) setLoading(false); });

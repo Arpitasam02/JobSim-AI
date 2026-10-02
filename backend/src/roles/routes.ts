@@ -159,6 +159,37 @@ export function createRoleRouter(pool: Pool, accessSecret: string) {
   const authenticate = requireAuthentication(pool, accessSecret);
   const candidateOnly = requireRoles('candidate');
 
+  router.get('/dashboard', authenticate, candidateOnly, asyncHandler(async (request, response) => {
+    const candidateId = request.authenticatedUser!.id;
+    const [resumeResult, fitResult] = await Promise.all([
+      pool.query(
+        `SELECT ra.overall_score::float8 AS score FROM resumes r
+         JOIN LATERAL (
+           SELECT id FROM resume_versions WHERE resume_id = r.id ORDER BY version_number DESC LIMIT 1
+         ) latest_version ON true
+         JOIN resume_analyses ra ON ra.resume_version_id = latest_version.id
+         WHERE r.candidate_id = $1 ORDER BY r.is_primary DESC, ra.created_at DESC LIMIT 1`,
+        [candidateId],
+      ),
+      pool.query(
+        `SELECT rfr.fit_score::float8 AS score FROM resumes r
+         JOIN LATERAL (
+           SELECT id FROM resume_versions WHERE resume_id = r.id ORDER BY version_number DESC LIMIT 1
+         ) latest_version ON true
+         JOIN role_fit_results rfr ON rfr.resume_version_id = latest_version.id
+         JOIN role_catalog rc ON rc.id = rfr.role_id
+         WHERE r.candidate_id = $1 AND rc.slug = 'data-analyst'
+         ORDER BY r.is_primary DESC, rfr.created_at DESC LIMIT 1`,
+        [candidateId],
+      ),
+    ]);
+    response.json({
+      resumeHealth: resumeResult.rowCount ? Number(resumeResult.rows[0].score) : 0,
+      dataAnalystFit: fitResult.rowCount ? Number(fitResult.rows[0].score) : 0,
+      hasAnalyzedResume: Boolean(resumeResult.rowCount),
+    });
+  }));
+
   router.get('/placement-probability', authenticate, candidateOnly, asyncHandler(async (request, response) => {
     const query = placementProbabilityQuery.safeParse(request.query);
     if (!query.success) return sendError(response, 400, 'VALIDATION_ERROR', 'A valid roleId UUID is required.');
