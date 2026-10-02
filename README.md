@@ -10,11 +10,11 @@ PlacePrep AI is a placement-preparation platform for candidates, recruiters, pla
 
 ## Run the full stack
 
-1. Copy `.env.example` to `.env` and replace the development secrets before exposing any service beyond your machine.
-2. Use your hosted PostgreSQL database (for example, Neon) instead of Docker.
+1. Copy `.env.example` to `.env` and configure the primary `DATABASE_URL`. The primary database may be hosted or the existing local Compose `postgres` service.
+2. For integration and E2E tests, use the separate local `postgres-test` service on host port `5433`; never use the primary URL as `DATABASE_URL_TEST`.
 3. Open the web app at `http://localhost:5173`. The API health endpoint is `http://localhost:4000/api/v1/health`; the AI service health endpoint is `http://localhost:8000/health`.
 
-The database credentials are for development only. Do not use them in a deployed environment.
+The database credentials in Compose are for local development only. Do not use them in a deployed environment.
 
 ## Run the web app and API without Docker
 
@@ -101,6 +101,6 @@ Run `npm run lint`, `npm test`, and `npm run build` at the root. CI runs these c
 
 ## Build status
 
-Milestones 1 and 2 are in place, with candidate slices of milestones 3-8 implemented: scaffold, PostgreSQL schema/seeds, authentication and consent, PDF/DOCX parsing and explainable resume analysis, role fit and tracked roadmap, and timed MCQ tests with autosave, server deadlines, scoring, and reports. Interview, coding sandbox, probability, recruiter, placement-officer, mentor, and admin workflows remain; see `docs/backlog.md`.
+Milestones 1-2 are in place, with candidate workflows implemented across milestones 3-10: authentication and consent, PDF/DOCX resume analysis, role fit and tracked roadmap, timed MCQ assessments, text interviews with evaluation, and a data-backed placement probability estimate with what-if scenarios. The probability panel now turns the weakest available signal into a direct next step. Coding sandbox, recruiter, placement-officer, mentor, and admin workflows remain; see `docs/backlog.md` for verification status and known gaps.
 
 The API and UI require PostgreSQL for authenticated workflows. Start the database using Docker Compose before using registration, resume history, or analysis. Resume files are local in development; configure production malware scanning and private S3-compatible storage before deployment.

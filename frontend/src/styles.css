@@ -228,6 +228,14 @@ h1 { margin: 9px 0 5px; font-size: 27px; font-weight: 700; }
 .probability-factor-meta strong { color: #385744; font-size: 9px; }
 .probability-factor-track { overflow: hidden; height: 7px; border-radius: 999px; background: #edf2eb; }
 .probability-factor-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #89b48e 0%, #467e5d 100%); }
+.probability-next-move { display: grid; grid-template-columns: 30px minmax(0, 1fr) 30px; align-items: center; gap: 10px; margin-top: 16px; padding: 11px 12px; border: 1px solid #e0e9df; border-radius: 6px; background: linear-gradient(110deg, #f0f6ed 0%, #fbfcf9 72%); }
+.next-move-icon { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: #e2edde; color: #397351; }
+.next-move-copy { display: grid; min-width: 0; gap: 3px; }
+.next-move-copy .section-kicker { color: #67806a; font-size: 8px; }
+.next-move-copy strong { color: #31493a; font-size: 11px; }
+.next-move-copy p { margin: 0; color: #778277; font-size: 9px; line-height: 1.5; }
+.probability-next-move button { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #dbe6d9; border-radius: 50%; background: #fff; color: #397351; cursor: pointer; }
+.probability-next-move button:hover { border-color: #9bb99d; background: #f6faf4; }
 .page-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 20px; color: #a0a69d; font-size: 9px; }
 .footer-separator { padding: 0 4px; }
 .page-footer button { color: #899288; font-size: 9px; font-weight: 500; }

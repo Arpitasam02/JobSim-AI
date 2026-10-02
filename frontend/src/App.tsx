@@ -84,6 +84,14 @@ const probabilityScenarioOverrides: Record<ProbabilityScenarioKey, Partial<Recor
   launch: { resume: 90, roleFit: 90, assessments: 90, interviews: 90, profile: 90 },
 };
 
+const probabilityNextMoves: Record<ProbabilityComponentKey, { title: string; destination: string; buttonLabel: string }> = {
+  resume: { title: 'Sharpen one project story', destination: 'My resume', buttonLabel: 'Open resume workspace' },
+  roleFit: { title: 'Close a must-have skill gap', destination: 'Skill roadmap', buttonLabel: 'Open skill roadmap' },
+  assessments: { title: 'Try a timed assessment', destination: 'Mock tests', buttonLabel: 'Open mock tests' },
+  interviews: { title: 'Rehearse one role-specific answer', destination: 'Mock interviews', buttonLabel: 'Open mock interviews' },
+  profile: { title: 'Complete your candidate profile', destination: 'My resume', buttonLabel: 'Open profile workspace' },
+};
+
 async function probabilityRequest<T>(path: string, accessToken: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -114,7 +122,7 @@ function normalizeProbabilityResult(result: ProbabilityResult): ProbabilityResul
   };
 }
 
-function ProbabilityForecastPanel({ accessToken }: { accessToken: string }) {
+function ProbabilityForecastPanel({ accessToken, onNavigate }: { accessToken: string; onNavigate: (section: string) => void }) {
   const [snapshot, setSnapshot] = useState<ProbabilitySnapshot | null>(null);
   const [summary, setSummary] = useState<ProbabilityResult | null>(null);
   const [scenario, setScenario] = useState<ProbabilityScenarioKey | null>(null);
@@ -172,6 +180,7 @@ function ProbabilityForecastPanel({ accessToken }: { accessToken: string }) {
   const ringStyle = {
     background: `conic-gradient(#2d7251 ${(summary?.probability ?? 0) * 3.6}deg, #edf1eb 0deg)`,
   };
+  const weakestFactor = summary?.factors.reduce((weakest, factor) => factor.score < weakest.score ? factor : weakest);
 
   return (
     <article className="panel probability-panel">
@@ -232,6 +241,25 @@ function ProbabilityForecastPanel({ accessToken }: { accessToken: string }) {
           </div>
         ))}
       </div>
+
+      {weakestFactor && (
+        <div className="probability-next-move">
+          <span className="next-move-icon"><Sparkles size={15} /></span>
+          <div className="next-move-copy">
+            <span className="section-kicker">SIGNAL TO LIFT · {weakestFactor.label}</span>
+            <strong>{probabilityNextMoves[weakestFactor.key].title}</strong>
+            <p>{weakestFactor.reason}</p>
+          </div>
+          <button
+            aria-label={probabilityNextMoves[weakestFactor.key].buttonLabel}
+            onClick={() => onNavigate(probabilityNextMoves[weakestFactor.key].destination)}
+            title={probabilityNextMoves[weakestFactor.key].buttonLabel}
+            type="button"
+          >
+            <ArrowRight size={15} />
+          </button>
+        </div>
+      )}
     </article>
   );
 }
@@ -313,7 +341,7 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
         </header>
 
         <div className="page-content">
-          {active === 'My resume' ? <ResumeWorkspace accessToken={accessToken} /> : active === 'Role matches' ? <RoleWorkspace accessToken={accessToken} view="roles" /> : active === 'Skill roadmap' ? <RoleWorkspace accessToken={accessToken} view="roadmap" /> : active === 'Mock tests' ? <AssessmentWorkspace accessToken={accessToken} /> : active === 'Mock interviews' ? <InterviewWorkspace accessToken={accessToken} /> : active === 'Placement probability' ? <ProbabilityForecastPanel accessToken={accessToken} /> : <>
+          {active === 'My resume' ? <ResumeWorkspace accessToken={accessToken} /> : active === 'Role matches' ? <RoleWorkspace accessToken={accessToken} view="roles" /> : active === 'Skill roadmap' ? <RoleWorkspace accessToken={accessToken} view="roadmap" /> : active === 'Mock tests' ? <AssessmentWorkspace accessToken={accessToken} /> : active === 'Mock interviews' ? <InterviewWorkspace accessToken={accessToken} /> : active === 'Placement probability' ? <ProbabilityForecastPanel accessToken={accessToken} onNavigate={setActive} /> : <>
           <section className="welcome-row">
             <div>
               <div className="eyebrow"><span className="eyebrow-dot" /> WEDNESDAY, SEPTEMBER 30</div>
@@ -346,7 +374,7 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
           </section>
 
           <section className="pulse-layout">
-            <ProbabilityForecastPanel accessToken={accessToken} />
+            <ProbabilityForecastPanel accessToken={accessToken} onNavigate={setActive} />
 
             <aside className="panel coach-panel">
               <div className="section-kicker">NEXT AI NUDGE</div>
