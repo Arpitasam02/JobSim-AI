@@ -58,6 +58,12 @@ export default function RoleWorkspace({ accessToken, view }: RoleWorkspaceProps)
 
   async function selectRole(roleId: string) {
     setSelectedRole(roleId);
+    const nextRoleName = roles.find((role) => role.id === roleId)?.name ?? '';
+    if (nextRoleName) {
+      localStorage.setItem('placeprep_selected_role_name', nextRoleName);
+    } else {
+      localStorage.removeItem('placeprep_selected_role_name');
+    }
     setError('');
     setRoadmap(null);
     try {

@@ -161,6 +161,7 @@ h1 { margin: 9px 0 5px; font-size: 27px; font-weight: 700; }
 .section-kicker { color: #91988e; font-size: 9px; }
 .section-heading h2, .practice-copy h2 { margin: 5px 0 0; font-size: 15px; font-weight: 700; }
 .action-counter { padding: 5px 7px; border-radius: 4px; background: #f1f4ed; color: #768371; font-size: 9px; white-space: nowrap; }
+.tracker-note { margin: 8px 0 0; color: #7a877c; font-size: 9px; }
 .action-list { display: grid; margin: 12px 0 9px; }
 .action-row { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 10px 1px; border: 0; border-bottom: 1px solid #f0f1ed; background: transparent; cursor: pointer; text-align: left; }
 .action-row:last-child { border-bottom: 0; }

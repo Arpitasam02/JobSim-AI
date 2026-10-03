@@ -172,21 +172,29 @@ export function createRoleRouter(pool: Pool, accessSecret: string) {
         [candidateId],
       ),
       pool.query(
-        `SELECT rfr.fit_score::float8 AS score FROM resumes r
+        `SELECT rc.name AS role_name, rfr.fit_score::float8 AS score
+         FROM resumes r
          JOIN LATERAL (
            SELECT id FROM resume_versions WHERE resume_id = r.id ORDER BY version_number DESC LIMIT 1
          ) latest_version ON true
          JOIN role_fit_results rfr ON rfr.resume_version_id = latest_version.id
          JOIN role_catalog rc ON rc.id = rfr.role_id
-         WHERE r.candidate_id = $1 AND rc.slug = 'data-analyst'
-         ORDER BY r.is_primary DESC, rfr.created_at DESC LIMIT 1`,
+         WHERE r.candidate_id = $1
+         ORDER BY r.is_primary DESC, rfr.fit_score DESC, rfr.created_at DESC LIMIT 1`,
         [candidateId],
       ),
     ]);
+    const topRoleMatch = fitResult.rowCount
+      ? {
+          roleName: String(fitResult.rows[0].role_name ?? 'Role'),
+          score: Number(fitResult.rows[0].score),
+        }
+      : null;
     response.json({
       resumeHealth: resumeResult.rowCount ? Number(resumeResult.rows[0].score) : 0,
       dataAnalystFit: fitResult.rowCount ? Number(fitResult.rows[0].score) : 0,
       hasAnalyzedResume: Boolean(resumeResult.rowCount),
+      topRoleMatch,
     });
   }));
 

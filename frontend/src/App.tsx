@@ -45,7 +45,8 @@ const actions = [
   { label: 'Try a 20-minute technical mock interview', type: 'Practice', icon: Mic2 },
 ];
 
-type DashboardData = { resumeHealth: number; dataAnalystFit: number; hasAnalyzedResume: boolean };
+type DashboardTopRoleMatch = { roleName: string; score: number } | null;
+type DashboardData = { resumeHealth: number; dataAnalystFit: number; hasAnalyzedResume: boolean; topRoleMatch?: DashboardTopRoleMatch };
 type DashboardRoleMatch = { roleName: string; score: number; explanation: string };
 type DailyProgress = Record<string, string[]>;
 
@@ -305,13 +306,35 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [dailyProgress, setDailyProgress] = useState<DailyProgress>(() => readDailyProgress(user.id));
-  const [dashboardData, setDashboardData] = useState<DashboardData>({ resumeHealth: 0, dataAnalystFit: 0, hasAnalyzedResume: false });
+  const [dashboardData, setDashboardData] = useState<DashboardData>({ resumeHealth: 0, dataAnalystFit: 0, hasAnalyzedResume: false, topRoleMatch: null });
   const [roleMatches, setRoleMatches] = useState<DashboardRoleMatch[]>([]);
   const [dashboardError, setDashboardError] = useState('');
   const todayKey = localDateKey(new Date());
   const completedActions = dailyProgress[todayKey] ?? [];
   const streak = countStreak(dailyProgress);
   const weekProgress = getWeekProgress(dailyProgress);
+
+  const storedRoleName = (() => {
+    try {
+      return localStorage.getItem('placeprep_selected_role_name') ?? '';
+    } catch {
+      return '';
+    }
+  })();
+
+  const selectedRoleMatch = (() => {
+    const storedChoice = storedRoleName
+      ? roleMatches.find((match) => match.roleName === storedRoleName) ?? null
+      : null;
+    const dashboardChoice = dashboardData.topRoleMatch && dashboardData.topRoleMatch.roleName
+      ? { roleName: dashboardData.topRoleMatch.roleName, score: Number(dashboardData.topRoleMatch.score), explanation: 'Latest top role match' }
+      : null;
+    const fallbackMatch = roleMatches[0] ?? null;
+    return storedChoice ?? fallbackMatch ?? dashboardChoice ?? null;
+  })();
+
+  const roleMatchScore = selectedRoleMatch ? Number(selectedRoleMatch.score) : null;
+  const roleMatchName = selectedRoleMatch ? selectedRoleMatch.roleName : 'Role fit';
 
   useEffect(() => {
     let active = true;
@@ -349,8 +372,7 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
     setDailyProgress(updated);
   }
 
-  const resumeScore = dashboardData.resumeHealth;
-  const dataAnalystFit = dashboardData.dataAnalystFit;
+  const resumeScore = Number(dashboardData.resumeHealth) || 0;
   const focusPercent = Math.round((completedActions.length / actions.length) * 100);
   const focusLabel = focusPercent >= 80 ? 'Launch mode' : focusPercent >= 45 ? 'Momentum building' : 'Starter orbit';
   const dailyEncouragement = completedActions.length === actions.length
@@ -449,9 +471,11 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
               <div className="metric-foot"><span>2 areas to work on</span><button onClick={() => setActive('Practice')} type="button">See next steps <ArrowRight size={13} /></button></div>
             </article>
             <article className="metric-card probability-metric">
-              <div className="metric-head"><span>ROLE FIT · DATA ANALYST</span><span className="metric-icon probability-icon"><Target size={16} /></span></div>
-              <div className="score-line"><strong>{dataAnalystFit}<span className="score-percent">%</span></strong></div>
-              <div className="metric-foot probability-foot"><span>{dashboardData.hasAnalyzedResume ? 'Based on your latest resume analysis' : 'Analyze a resume to calculate fit'}</span><button onClick={() => setActive('Role matches')} type="button">Explore roles <ArrowRight size={13} /></button></div>
+              <div className="metric-head"><span>ROLE FIT · {roleMatchName ? roleMatchName.toUpperCase() : 'ROLE FIT'}</span><span className="metric-icon probability-icon"><Target size={16} /></span></div>
+              <div className="score-line">
+                {roleMatchScore === null ? <strong>—</strong> : <strong>{Number(roleMatchScore)}<span className="score-percent">%</span></strong>}
+              </div>
+              <div className="metric-foot probability-foot"><span>{roleMatchScore === null ? 'Analyze a resume to see a match' : dashboardData.hasAnalyzedResume ? 'Based on your latest resume analysis' : 'Analyze a resume to calculate fit'}</span><button onClick={() => setActive('Role matches')} type="button">Explore roles <ArrowRight size={13} /></button></div>
             </article>
           </section>
 
@@ -472,7 +496,8 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
 
           <div className="content-grid">
             <section className="panel actions-panel">
-              <div className="section-heading"><div><div className="section-kicker">YOUR NEXT MOVES</div><h2>Small steps, real progress</h2></div><span className="action-counter">{completedActions.length}/{actions.length} done</span></div>
+              <div className="section-heading"><div><div className="section-kicker">YOUR NEXT MOVES</div><h2>Personal tracker · saved in this browser</h2></div><span className="action-counter">{completedActions.length}/{actions.length} done</span></div>
+              <p className="tracker-note">This checklist is personal and local to your browser; it is not an account score.</p>
               <div className="action-list">
                 {actions.map(({ label, type, icon: Icon }) => {
                   const done = completedActions.includes(label);
@@ -559,7 +584,7 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
                 </div>
                 <div className="signal-list">
                   <div className="signal-row"><span>Resume stories</span><strong>{resumeScore >= 80 ? 'Ready' : resumeScore >= 65 ? 'Polish' : 'Build'}</strong></div>
-                  <div className="signal-row"><span>Role match</span><strong>{dataAnalystFit >= 75 ? 'High' : dataAnalystFit >= 55 ? 'Promising' : 'Stretch'}</strong></div>
+                  <div className="signal-row"><span>{roleMatchScore === null ? 'Role match' : `Role match · ${roleMatchName}`}</span><strong>{roleMatchScore === null ? 'Analyze a resume to see a match' : `${Number(roleMatchScore)}%`}</strong></div>
                   <div className="signal-row"><span>Practice streak</span><strong>{streak} day{streak === 1 ? '' : 's'}</strong></div>
                 </div>
               </div>

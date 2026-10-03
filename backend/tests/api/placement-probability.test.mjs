@@ -90,14 +90,15 @@ test('candidate placement probability is private, numeric, and simulation is rea
 
   const emptyDashboard = await withAuth(request(app).get('/api/v1/me/dashboard'), candidate.token);
   assert.equal(emptyDashboard.status, 200);
-  assert.deepEqual(emptyDashboard.body, { resumeHealth: 0, dataAnalystFit: 0, hasAnalyzedResume: false });
+  assert.deepEqual(emptyDashboard.body, { resumeHealth: 0, dataAnalystFit: 0, hasAnalyzedResume: false, topRoleMatch: null });
 
   const roleId = await createProbabilityFixture(candidate.id, (assessmentId) => { fixtureAssessmentId = assessmentId; });
   const analyzedDashboard = await withAuth(request(app).get('/api/v1/me/dashboard'), candidate.token);
   assert.equal(analyzedDashboard.status, 200);
   assert.equal(analyzedDashboard.body.resumeHealth, 80);
   assert.equal(analyzedDashboard.body.hasAnalyzedResume, true);
-  assert.equal(analyzedDashboard.body.dataAnalystFit, 0);
+  assert.equal(analyzedDashboard.body.dataAnalystFit, 75);
+  assert.deepEqual(analyzedDashboard.body.topRoleMatch, { roleName: 'Software Engineer', score: 75 });
   const latestRole = await withAuth(request(app).get(path), candidate.token);
   assert.equal(latestRole.status, 200);
   assert.equal(latestRole.body.role.id, roleId);
