@@ -64,12 +64,16 @@ test('candidate completes registration through interview report using the test d
     await page.getByLabel('Email address').fill(email);
     const registerPassword = page.getByLabel('Password', { exact: true });
     await registerPassword.fill('CampusReady-2026!');
-    const registerPasswordToggle = page.getByRole('button', { name: 'Show password', exact: true });
+    const registerPasswordField = page.getByTestId('password-field-password');
+    const registerPasswordToggle = registerPasswordField.getByRole('button', { name: /^(Show|Hide) password$/ });
+    await expect(registerPasswordToggle).toHaveCount(1);
     await registerPasswordToggle.click();
     await expect(registerPassword).toHaveAttribute('type', 'text');
     await expect(registerPassword).toHaveValue('CampusReady-2026!');
+    await expect(registerPasswordField.getByRole('button', { name: 'Hide password', exact: true })).toBeVisible();
     await registerPasswordToggle.click();
     await expect(registerPassword).toHaveAttribute('type', 'password');
+    await expect(registerPasswordField.getByRole('button', { name: 'Show password', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Create account' }).click();
     await page.getByRole('button', { name: 'Verify email' }).click();
 
