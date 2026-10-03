@@ -62,7 +62,14 @@ test('candidate completes registration through interview report using the test d
     await page.getByRole('button', { name: 'Create account' }).click();
     await page.getByLabel('Name').fill('Jordan Lee');
     await page.getByLabel('Email address').fill(email);
-    await page.getByLabel('Password').fill('CampusReady-2026!');
+    const registerPassword = page.getByLabel('Password', { exact: true });
+    await registerPassword.fill('CampusReady-2026!');
+    const registerPasswordToggle = page.getByRole('button', { name: 'Show password', exact: true });
+    await registerPasswordToggle.click();
+    await expect(registerPassword).toHaveAttribute('type', 'text');
+    await expect(registerPassword).toHaveValue('CampusReady-2026!');
+    await registerPasswordToggle.click();
+    await expect(registerPassword).toHaveAttribute('type', 'password');
     await page.getByRole('button', { name: 'Create account' }).click();
     await page.getByRole('button', { name: 'Verify email' }).click();
 

@@ -126,9 +126,22 @@ async function probabilityRequest<T>(path: string, accessToken: string, init?: R
     ...init,
     headers: { Authorization: `Bearer ${accessToken}`, ...(init?.headers ?? {}) },
   });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result?.message ?? 'Placement probability could not be loaded.');
-  return result as T;
+  const result = await readJsonResponse<T>(response, {} as T);
+  if (!response.ok) {
+    const messageResult = result as { message?: string } | undefined;
+    throw new Error(messageResult?.message ?? 'Placement probability could not be loaded.');
+  }
+  return result;
+}
+
+async function readJsonResponse<T>(response: Response, fallback: T): Promise<T> {
+  const text = await response.text();
+  if (!text.trim()) return fallback;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error('The server returned an invalid response. Please try again.');
+  }
 }
 
 function nullableNumber(value: number | null | undefined): number | null {
@@ -652,14 +665,14 @@ function App() {
           localStorage.removeItem('placeprep_has_session');
           return;
         }
-        const result = await response.json() as { accessToken?: string; user?: SessionUser };
+        const result = await readJsonResponse<{ accessToken?: string; user?: SessionUser }>(response, {});
         if (!result.accessToken || !result.user) return;
         const profileResponse = await fetch('/api/v1/auth/me', {
           headers: { Authorization: `Bearer ${result.accessToken}` },
           credentials: 'include',
         });
         if (!profileResponse.ok) return;
-        const profile = await profileResponse.json() as { roles?: string[] };
+        const profile = await readJsonResponse<{ roles?: string[] }>(profileResponse, {});
         if (active) setSession({ accessToken: result.accessToken, user: { ...result.user, roles: profile.roles } });
       } catch {
         if (active) setSession(null);

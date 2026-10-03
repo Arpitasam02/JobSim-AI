@@ -80,13 +80,39 @@ function csvValues(value: string) {
   return value.split(',').map((item) => item.trim()).filter(Boolean);
 }
 
+function describeApiFailure(cause: unknown, fallback: string) {
+  if (cause instanceof TypeError) {
+    return 'We could not reach the PlacePrep API. Start the API on port 4000 and try again.';
+  }
+  if (cause instanceof Error) {
+    const message = cause.message || fallback;
+    if (/session|sign in again|expired/i.test(message)) {
+      return message;
+    }
+    if (/server|try again later|unexpected error|internal error/i.test(message)) {
+      return 'The server is having trouble. Please try again in a moment.';
+    }
+    if (/validation|required|invalid|incorrect|verify|password/i.test(message)) {
+      return message;
+    }
+    return message;
+  }
+  return fallback;
+}
+
 async function apiRequest<T>(path: string, accessToken: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
     headers: { Authorization: `Bearer ${accessToken}`, ...(init?.headers ?? {}) },
   });
-  const body = response.status === 204 ? null : await response.json();
-  if (!response.ok) throw new Error(body?.message ?? 'The request could not be completed.');
+  const contentType = response.headers.get('content-type') ?? '';
+  const body = response.status === 204 || !contentType.includes('application/json') ? null : await response.json();
+  if (!response.ok) {
+    const message = body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
+      ? body.message
+      : 'The request could not be completed.';
+    throw new Error(message);
+  }
   return body as T;
 }
 
@@ -122,7 +148,7 @@ export function CandidateJobsWorkspace({ accessToken, onNavigate }: { accessToke
       setResumes(resumeResult.resumes ?? []);
       setResumeId(resumeResult.resumes?.[0]?.id ?? '');
     }).catch((cause: unknown) => {
-      if (active) setError(cause instanceof Error ? cause.message : 'Jobs could not be loaded.');
+      if (active) setError(describeApiFailure(cause, 'Jobs could not be loaded.'));
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [accessToken, pagination.page, pagination.pageSize]);
