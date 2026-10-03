@@ -351,11 +351,18 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
 
   const resumeScore = dashboardData.resumeHealth;
   const dataAnalystFit = dashboardData.dataAnalystFit;
+  const focusPercent = Math.round((completedActions.length / actions.length) * 100);
+  const focusLabel = focusPercent >= 80 ? 'Launch mode' : focusPercent >= 45 ? 'Momentum building' : 'Starter orbit';
   const dailyEncouragement = completedActions.length === actions.length
     ? 'You completed today’s plan. Come back tomorrow to keep your streak going.'
     : completedActions.length
       ? `${actions.length - completedActions.length} small step${actions.length - completedActions.length === 1 ? '' : 's'} left for today.`
       : 'Pick one small task to get today’s momentum started.';
+  const focusNarrative = focusPercent >= 80
+    ? 'You have enough traction to target a role-specific sprint this week. Keep the streak alive and turn one win into a full interview-ready story.'
+    : focusPercent >= 45
+      ? 'Your routine is compounding. One focused 30-minute practice block can push your resume story, role-fit, and interview readiness together.'
+      : 'Start small, protect consistency, and stack wins. A single focused push today can change the shape of your week.';
 
   return (
     <div className="app-shell">
@@ -530,6 +537,52 @@ function CandidateDashboard({ accessToken, user, onSignOut }: DashboardProps) {
               <div className="momentum-grid">
                 <div className="momentum-tile"><span>DAILY TASKS</span><strong>{completedActions.length}/{actions.length}</strong><small>{dailyEncouragement}</small></div>
                 <div className="momentum-tile"><span>STREAK</span><strong>{streak} day{streak === 1 ? '' : 's'}</strong><small>Keep the habit gentle and steady.</small></div>
+              </div>
+            </article>
+          </section>
+
+          <section className="creative-grid">
+            <article className="panel creative-panel">
+              <div className="section-heading">
+                <div>
+                  <div className="section-kicker">CAREER WEATHER</div>
+                  <h2>Momentum map</h2>
+                </div>
+                <span className="pulse-badge">{focusLabel}</span>
+              </div>
+              <div className="creative-layout">
+                <div className="focus-ring" style={{ background: `conic-gradient(#2d7251 ${focusPercent * 3.6}deg, #edf2ee 0deg)` }}>
+                  <div className="focus-ring-inner">
+                    <strong>{focusPercent}%</strong>
+                    <small>focus</small>
+                  </div>
+                </div>
+                <div className="signal-list">
+                  <div className="signal-row"><span>Resume stories</span><strong>{resumeScore >= 80 ? 'Ready' : resumeScore >= 65 ? 'Polish' : 'Build'}</strong></div>
+                  <div className="signal-row"><span>Role match</span><strong>{dataAnalystFit >= 75 ? 'High' : dataAnalystFit >= 55 ? 'Promising' : 'Stretch'}</strong></div>
+                  <div className="signal-row"><span>Practice streak</span><strong>{streak} day{streak === 1 ? '' : 's'}</strong></div>
+                </div>
+              </div>
+            </article>
+
+            <article className="panel creative-panel creative-panel-alt">
+              <div className="section-kicker">AI COACH</div>
+              <h2>Forecast for this week</h2>
+              <p className="creative-blurb">{focusNarrative}</p>
+              <div className="mini-timeline">
+                {[
+                  { label: 'Resume', text: 'Tighten metrics' },
+                  { label: 'Role fit', text: 'Close gaps' },
+                  { label: 'Interview', text: 'Practice story' },
+                ].map(({ label, text }, index) => (
+                  <div className="timeline-item" key={label}>
+                    <span className={`timeline-dot dot-${index + 1}`} />
+                    <div>
+                      <strong>{label}</strong>
+                      <small>{text}</small>
+                    </div>
+                  </div>
+                ))}
               </div>
             </article>
           </section>
