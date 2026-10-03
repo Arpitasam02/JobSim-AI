@@ -103,6 +103,8 @@ Run `npm run lint`, `npm test`, and `npm run build` at the root. CI runs these c
 
 ## Build status
 
-Milestones 1-2 are in place, with candidate workflows implemented across milestones 3-10: authentication and consent, PDF/DOCX resume analysis, role fit and tracked roadmap, timed MCQ assessments, text interviews with evaluation, and a data-backed placement probability estimate with what-if scenarios. The probability panel now turns the weakest available signal into a direct next step. Coding sandbox, recruiter, placement-officer, mentor, and admin workflows remain; see `docs/backlog.md` for verification status and known gaps.
+Milestones 1-2 are in place. Milestone 10 is complete: the candidate workflow is implemented end-to-end with auth and consent, PDF/DOCX resume analysis, role fit and tracked roadmap, timed assessments, text interviews with evaluation, and a data-backed placement probability estimate with what-if scenarios. The candidate dashboard and probability panel now turn the weakest available signal into a direct next step.
+
+Milestone 11, slice 1 is also complete: the recruiter workspace has a live job-creation and applicant-review flow for company postings and application tracking. Remaining slices are explicitly deferred: 11.2 placement officer batch workflows, 11.3 mentor review/evaluation flows, and 11.4 shared scheduling and notifications (calendar + reminders). Milestone 12 (admin), Milestone 13 (full role dashboards), and Milestone 14 hardening remain; see `docs/backlog.md` for the current verification status and known gaps.
 
 The API and UI require PostgreSQL for authenticated workflows. Start the database using Docker Compose before using registration, resume history, or analysis. Resume files are local in development; configure production malware scanning and private S3-compatible storage before deployment.
