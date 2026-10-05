@@ -929,3 +929,12 @@ body { font-size: 16px; }
   .assistant-launcher { right: 14px; bottom: 14px; }
   .study-assistant-panel { right: 8px; bottom: 72px; width: calc(100vw - 16px); }
 }
+
+.email-generator { display: grid; gap: 10px; margin-top: 10px; padding: 13px; border: 1px solid #e2e8de; border-radius: 8px; background: linear-gradient(135deg, #f8fbf6 0%, #fdfcf8 100%); }
+.email-generator-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.email-type-toggle { display: flex; border: 1px solid #dfe5dc; border-radius: 999px; overflow: hidden; }
+.email-type-toggle button { padding: 5px 10px; border: 0; background: transparent; color: #6b7a6b; cursor: pointer; font-size: 9px; font-weight: 600; }
+.email-type-toggle button.is-active { background: #347455; color: #fff; }
+.email-generator-output { overflow-x: auto; margin: 0; padding: 12px; border: 1px solid #e5ebe2; border-radius: 6px; background: #fff; color: #374239; font: 400 11px/1.75 'DM Sans', monospace; white-space: pre-wrap; word-break: break-word; }
+.email-cursor { display: inline-block; width: 2px; height: 13px; margin-left: 1px; vertical-align: text-bottom; background: #347455; animation: blink .7s step-end infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }

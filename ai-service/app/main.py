@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import os
 import re
@@ -8,7 +9,9 @@ import fitz
 import pytesseract
 from docx import Document
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from PIL import Image
+from pydantic import BaseModel
 from pypdf import PdfReader
 
 app = FastAPI(
@@ -148,9 +151,82 @@ def parse_resume(text: str, page_count: int, used_ocr: bool) -> dict:
     }
 
 
+# ── Email / Cover Letter Generator ──────────────────────────────────────────
+
+class EmailGenerateRequest(BaseModel):
+    candidateName: str
+    candidateEmail: str | None = None
+    skills: list[str] = []
+    experience: list[str] = []
+    projects: list[str] = []
+    education: str = ""
+    jobTitle: str
+    companyName: str
+    jobDescription: str = ""
+    requiredSkills: list[str] = []
+    type: str = "cover_letter"
+
+
+def build_email_text(req: EmailGenerateRequest) -> str:
+    skills_str = ", ".join(req.skills[:12]) or "various technical skills"
+    projects_str = "; ".join(req.projects[:3]) or "several academic and personal projects"
+    experience_str = req.experience[0] if req.experience else ""
+    match_skills = [s for s in req.requiredSkills if s.lower() in skills_str.lower()][:5]
+    match_str = ", ".join(match_skills) if match_skills else skills_str.split(",")[0].strip()
+
+    if req.type == "cold_email":
+        return (
+            f"Subject: Application for {req.jobTitle} at {req.companyName}\n\n"
+            f"Dear Hiring Team at {req.companyName},\n\n"
+            f"I am {req.candidateName}, a motivated candidate with hands-on experience in {skills_str}. "
+            f"I came across the {req.jobTitle} opening and believe my background is a strong match for what your team is building.\n\n"
+            f"{'I have worked on ' + experience_str + ', which gave me direct exposure to the challenges your team likely faces. ' if experience_str else ''}"
+            f"My projects include {projects_str}, demonstrating my ability to deliver end-to-end solutions. "
+            f"I am particularly aligned with your requirement for {match_str}.\n\n"
+            f"I would love the opportunity to contribute to {req.companyName}. "
+            f"Could we schedule a brief call this week?\n\n"
+            f"Best regards,\n{req.candidateName}"
+            f"{chr(10) + req.candidateEmail if req.candidateEmail else ''}"
+        )
+    return (
+        f"{req.candidateName}\n"
+        f"{req.candidateEmail or ''}\n\n"
+        f"Hiring Manager\n{req.companyName}\n\n"
+        f"Dear Hiring Manager,\n\n"
+        f"I am writing to express my strong interest in the {req.jobTitle} position at {req.companyName}. "
+        f"With a solid foundation in {skills_str} and a track record of delivering impactful work, "
+        f"I am confident I can contribute meaningfully to your team.\n\n"
+        f"{'In my previous role, ' + experience_str + ' ' if experience_str else ''}"
+        f"I have built and shipped {projects_str}. "
+        f"These experiences have sharpened my skills in {match_str}, "
+        f"which I understand are central to this role.\n\n"
+        f"{('My academic background in ' + req.education + ' has given me a strong theoretical foundation to complement my practical skills. ') if req.education else ''}"
+        f"I am excited about the opportunity to bring this expertise to {req.companyName} and grow alongside your team.\n\n"
+        f"Thank you for considering my application. I look forward to discussing how I can contribute.\n\n"
+        f"Sincerely,\n{req.candidateName}"
+    )
+
+
 @app.get("/health", tags=["health"])
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "placeprep-ai"}
+
+
+@app.post("/email/generate", tags=["email"])
+async def generate_email(req: EmailGenerateRequest) -> StreamingResponse:
+    text = build_email_text(req)
+
+    async def stream():
+        for char in text:
+            yield f"data: {char}\n\n"
+            await asyncio.sleep(0.012)
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/resume/parse", tags=["resume"])

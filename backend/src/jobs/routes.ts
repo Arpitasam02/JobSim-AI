@@ -142,6 +142,56 @@ export function createCandidateJobsRouter(pool: Pool, accessSecret: string) {
     }
   }));
 
+  router.post('/:id/generate-email', authenticate, candidateOnly, asyncHandler(async (request, response, next) => {
+    const jobId = uuidSchema.safeParse(request.params.id);
+    if (!jobId.success) return sendError(response, 400, 'VALIDATION_ERROR', 'A valid job ID is required.');
+    const parsed = z.object({
+      type: z.enum(['cover_letter', 'cold_email']).default('cover_letter'),
+      candidateName: z.string().min(1).max(120),
+      candidateEmail: z.string().email().max(254).nullable().optional(),
+      skills: z.array(z.string()).max(20).default([]),
+      experience: z.array(z.string()).max(10).default([]),
+      projects: z.array(z.string()).max(10).default([]),
+      education: z.string().max(300).default(''),
+    }).strict().safeParse(request.body);
+    if (!parsed.success) return sendError(response, 400, 'VALIDATION_ERROR', 'Provide valid candidate details.');
+    try {
+      const jobResult = await pool.query(
+        `SELECT j.title, cp.name AS company_name, j.description, j.required_skills
+         FROM jobs j JOIN company_profiles cp ON cp.id = j.company_id WHERE j.id = $1`,
+        [jobId.data],
+      );
+      if (!jobResult.rowCount) return sendError(response, 404, 'NOT_FOUND', 'Job not found.');
+      const job = jobResult.rows[0];
+      const aiUrl = process.env.AI_SERVICE_URL ?? 'http://localhost:8000';
+      const aiResponse = await fetch(`${aiUrl}/email/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...parsed.data,
+          jobTitle: job.title,
+          companyName: job.company_name,
+          jobDescription: job.description,
+          requiredSkills: job.required_skills ?? [],
+        }),
+      });
+      if (!aiResponse.ok || !aiResponse.body) return sendError(response, 502, 'AI_UNAVAILABLE', 'The AI service could not generate the email.');
+      response.setHeader('Content-Type', 'text/event-stream');
+      response.setHeader('Cache-Control', 'no-cache');
+      response.setHeader('X-Accel-Buffering', 'no');
+      const reader = aiResponse.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        response.write(decoder.decode(value, { stream: true }));
+      }
+      response.end();
+    } catch (error) {
+      next(error);
+    }
+  }));
+
   router.post('/:id/apply', authenticate, candidateOnly, asyncHandler(async (request, response, next) => {
     const jobId = uuidSchema.safeParse(request.params.id);
     const body = applySchema.safeParse(request.body);

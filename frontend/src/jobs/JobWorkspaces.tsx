@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowRight, BriefcaseBusiness, CheckCircle2, LoaderCircle, Pencil, ShieldAlert, Users } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { ArrowRight, BriefcaseBusiness, CheckCircle2, Copy, LoaderCircle, Pencil, ShieldAlert, Sparkles, Users, X } from 'lucide-react';
 
 type Resume = { id: string; title: string; is_primary: boolean };
 type JobPagination = { page: number; pageSize: number; total: number };
@@ -123,10 +123,97 @@ function numberOrNull(value: string): number | null {
   return number;
 }
 
+function EmailGenerator({ jobId, accessToken, resumeData }: { jobId: string; accessToken: string; resumeData: { name: string; email: string | null; skills: string[]; experience: string[]; projects: string[]; education: string } | null }) {
+  const [open, setOpen] = useState(false);
+  const [type, setType] = useState<'cover_letter' | 'cold_email'>('cover_letter');
+  const [streaming, setStreaming] = useState(false);
+  const [text, setText] = useState('');
+  const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const abortRef = useRef<(() => void) | null>(null);
+
+  function stop() {
+    abortRef.current?.();
+    setStreaming(false);
+  }
+
+  async function generate() {
+    if (!resumeData) return;
+    setText('');
+    setError('');
+    setStreaming(true);
+    setCopied(false);
+    let cancelled = false;
+    abortRef.current = () => { cancelled = true; };
+    try {
+      const response = await fetch(`/api/v1/jobs/${jobId}/generate-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ type, candidateName: resumeData.name, candidateEmail: resumeData.email, skills: resumeData.skills, experience: resumeData.experience, projects: resumeData.projects, education: resumeData.education }),
+      });
+      if (!response.ok || !response.body) { setError('The AI service could not generate the email.'); setStreaming(false); return; }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        if (cancelled) { reader.cancel(); break; }
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const chunk = line.slice(6);
+          if (chunk === '[DONE]') { setStreaming(false); return; }
+          setText((prev) => prev + chunk);
+        }
+      }
+    } catch {
+      if (!cancelled) setError('Could not connect to the AI service.');
+    } finally {
+      if (!cancelled) setStreaming(false);
+    }
+  }
+
+  async function copy() {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (!open) {
+    return <button className="text-link" onClick={() => setOpen(true)} type="button"><Sparkles size={14} /> Generate cover letter</button>;
+  }
+
+  return (
+    <div className="email-generator">
+      <div className="email-generator-head">
+        <div className="email-type-toggle">
+          <button className={type === 'cover_letter' ? 'is-active' : ''} disabled={streaming} onClick={() => setType('cover_letter')} type="button">Cover letter</button>
+          <button className={type === 'cold_email' ? 'is-active' : ''} disabled={streaming} onClick={() => setType('cold_email')} type="button">Cold email</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+          {text && <button className="text-link" onClick={() => { void copy(); }} type="button">{copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}{copied ? 'Copied' : 'Copy'}</button>}
+          {streaming ? <button className="text-link" onClick={stop} type="button"><X size={13} /> Stop</button>
+            : <button className="practice-button" disabled={!resumeData} onClick={() => { void generate(); }} style={{ minHeight: 30, fontSize: 10 }} type="button"><Sparkles size={13} />{text ? 'Regenerate' : 'Generate'}</button>}
+          <button aria-label="Close generator" className="round-arrow" onClick={() => { stop(); setOpen(false); }} type="button"><X size={14} /></button>
+        </div>
+      </div>
+      {!resumeData && <p className="resume-empty" style={{ margin: '8px 0 0' }}>Upload and analyze a resume first to generate a personalized letter.</p>}
+      {error && <div className="resume-error" role="alert" style={{ margin: '8px 0 0' }}>{error}</div>}
+      {(text || streaming) && (
+        <pre className="email-generator-output">{text}{streaming && <span className="email-cursor" />}</pre>
+      )}
+    </div>
+  );
+}
+
 export function CandidateJobsWorkspace({ accessToken, onNavigate }: { accessToken: string; onNavigate: (section: string) => void }) {
   const [jobs, setJobs] = useState<CandidateJob[]>([]);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [resumeId, setResumeId] = useState('');
+  const [resumeData, setResumeData] = useState<{ name: string; email: string | null; skills: string[]; experience: string[]; projects: string[]; education: string } | null>(null);
   const [pagination, setPagination] = useState<JobPagination>({ page: 1, pageSize: 20, total: 0 });
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -141,12 +228,14 @@ export function CandidateJobsWorkspace({ accessToken, onNavigate }: { accessToke
     Promise.all([
       apiRequest<{ jobs: CandidateJob[]; pagination: JobPagination }>(`/api/v1/jobs?page=${pagination.page}&pageSize=${pagination.pageSize}`, accessToken),
       apiRequest<{ resumes: Resume[] }>('/api/v1/resumes', accessToken),
-    ]).then(([jobResult, resumeResult]) => {
+      apiRequest<{ user: { name: string; email: string } }>('/api/v1/auth/me', accessToken),
+    ]).then(([jobResult, resumeResult, meResult]) => {
       if (!active) return;
       setJobs(jobResult.jobs ?? []);
       setPagination(jobResult.pagination ?? { page: 1, pageSize: 20, total: 0 });
       setResumes(resumeResult.resumes ?? []);
       setResumeId(resumeResult.resumes?.[0]?.id ?? '');
+      setResumeData({ name: meResult.user?.name ?? '', email: meResult.user?.email ?? null, skills: [], experience: [], projects: [], education: '' });
     }).catch((cause: unknown) => {
       if (active) setError(describeApiFailure(cause, 'Jobs could not be loaded.'));
     }).finally(() => { if (active) setLoading(false); });
@@ -198,6 +287,7 @@ export function CandidateJobsWorkspace({ accessToken, onNavigate }: { accessToke
           {job.required_skills.length > 0 && <div className="job-skills">{job.required_skills.map((skill) => <span key={skill}>{skill}</span>)}</div>}
           {job.rounds.length > 0 && <p className="job-rounds"><strong>Rounds:</strong> {job.rounds.join(' · ')}</p>}
           {job.role_id && <button className="text-link job-practice-link" onClick={() => { localStorage.setItem('placeprep_interview_role_id', job.role_id!); onNavigate('Mock interviews'); }} type="button">Practice for this role <ArrowRight size={14} /></button>}
+          <EmailGenerator jobId={job.id} accessToken={accessToken} resumeData={resumeData} />
           {resumes.length === 0 ? <button className="practice-button" onClick={() => onNavigate('My resume')} type="button">Add a resume <ArrowRight size={15} /></button>
             : <button className="practice-button" disabled={Boolean(applying) || applied[job.id]} onClick={() => { void apply(job.id); }} type="button">{applying === job.id ? <LoaderCircle className="spinner" size={15} /> : applied[job.id] ? <CheckCircle2 size={15} /> : null}{applied[job.id] ? 'Application submitted' : applying === job.id ? 'Submitting' : 'Apply'}{!applied[job.id] && applying !== job.id && <ArrowRight size={15} />}</button>}
           {applied[job.id] && <p className="job-apply-confirmation" role="status">Your application has been submitted.</p>}
