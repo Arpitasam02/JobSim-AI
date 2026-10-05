@@ -648,23 +648,21 @@ function RecruiterDashboard({ accessToken, user, onSignOut }: DashboardProps) {
 }
 
 function App() {
+  const hasStoredSession = localStorage.getItem('placeprep_has_session') === 'true';
   const [session, setSession] = useState<{ accessToken: string; user: SessionUser } | null>(null);
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [checkingSession, setCheckingSession] = useState(hasStoredSession);
 
   useEffect(() => {
+    if (!hasStoredSession) return;
     let active = true;
+    const timeout = setTimeout(() => {
+      if (active) { localStorage.removeItem('placeprep_has_session'); setCheckingSession(false); }
+    }, 4000);
 
     async function restoreSession() {
-      if (localStorage.getItem('placeprep_has_session') !== 'true') {
-        setCheckingSession(false);
-        return;
-      }
       try {
         const response = await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' });
-        if (!response.ok) {
-          localStorage.removeItem('placeprep_has_session');
-          return;
-        }
+        if (!response.ok) { localStorage.removeItem('placeprep_has_session'); return; }
         const result = await readJsonResponse<{ accessToken?: string; user?: SessionUser }>(response, {});
         if (!result.accessToken || !result.user) return;
         const profileResponse = await fetch('/api/v1/auth/me', {
@@ -675,14 +673,15 @@ function App() {
         const profile = await readJsonResponse<{ roles?: string[] }>(profileResponse, {});
         if (active) setSession({ accessToken: result.accessToken, user: { ...result.user, roles: profile.roles } });
       } catch {
-        if (active) setSession(null);
+        if (active) { localStorage.removeItem('placeprep_has_session'); setSession(null); }
       } finally {
+        clearTimeout(timeout);
         if (active) setCheckingSession(false);
       }
     }
 
     void restoreSession();
-    return () => { active = false; };
+    return () => { active = false; clearTimeout(timeout); };
   }, []);
 
   async function signOut() {
