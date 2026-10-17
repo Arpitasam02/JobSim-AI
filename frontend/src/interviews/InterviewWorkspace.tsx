@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, BrainCircuit, CheckCircle2, CircleDot, LoaderCircle, MessageSquareText, Plus, Sparkles, Target, Trophy } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, BrainCircuit, CheckCircle2, CircleDot, LoaderCircle, MessageSquareText, Mic, MicOff, Plus, Sparkles, Target, Trophy, Volume2 } from 'lucide-react';
 
 type InterviewKind = 'hr_behavioral' | 'technical' | 'project_deep_dive' | 'managerial' | 'case_situational' | 'full_simulation';
 type Role = { id: string; name: string };
@@ -65,6 +65,54 @@ function SignalBars({ rubric }: { rubric: Record<string, number> }) {
   </div>;
 }
 
+type AnySpeechRecognition = {
+  continuous: boolean; interimResults: boolean; lang: string;
+  onresult: ((e: { results: { length: number; [i: number]: { [i: number]: { transcript: string } } } }) => void) | null;
+  onend: (() => void) | null;
+  start(): void; stop(): void;
+};
+
+function useSpeechRecognition(onResult: (text: string) => void) {
+  const recognitionRef = useRef<AnySpeechRecognition | null>(null);
+  const [listening, setListening] = useState(false);
+  const w = window as unknown as Record<string, new () => AnySpeechRecognition>;
+  const [supported] = useState(() => 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+  function start() {
+    const SR = w['SpeechRecognition'] ?? w['webkitSpeechRecognition'];
+    if (!SR) return;
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.lang = 'en-US';
+    rec.onresult = (e) => {
+      let transcript = '';
+      for (let i = 0; i < e.results.length; i++) transcript += e.results[i][0].transcript + ' ';
+      onResult(transcript.trim());
+    };
+    rec.onend = () => setListening(false);
+    rec.start();
+    recognitionRef.current = rec;
+    setListening(true);
+  }
+
+  function stop() {
+    recognitionRef.current?.stop();
+    setListening(false);
+  }
+
+  return { supported, listening, start, stop };
+}
+
+function speak(text: string) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 0.95;
+  utterance.pitch = 1;
+  window.speechSynthesis.speak(utterance);
+}
+
 export default function InterviewWorkspace({ accessToken }: Props) {
   const [interviews, setInterviews] = useState<InterviewSummary[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -75,9 +123,12 @@ export default function InterviewWorkspace({ accessToken }: Props) {
   const [questionCount, setQuestionCount] = useState(0);
   const [report, setReport] = useState<InterviewReport['report'] | null>(null);
   const [answer, setAnswer] = useState('');
+  const [voiceMode, setVoiceMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  const speech = useSpeechRecognition((transcript) => setAnswer((prev) => prev ? prev + ' ' + transcript : transcript));
 
   async function loadInterviews() {
     const result = await request<{ interviews: InterviewSummary[] }>('/api/v1/interviews', accessToken);
@@ -110,6 +161,7 @@ export default function InterviewWorkspace({ accessToken }: Props) {
       setQuestionCount(count || snapshot.answers.length + (snapshot.currentQuestion ? 1 : 0));
       setAnswer('');
       setReport(null);
+      if (voiceMode && snapshot.currentQuestion) speak(snapshot.currentQuestion.question);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Interview could not be opened.');
     } finally {
@@ -218,18 +270,74 @@ export default function InterviewWorkspace({ accessToken }: Props) {
     const question = session.currentQuestion;
     const progress = questionCount ? Math.round((answeredCount / questionCount) * 100) : 0;
     return <section className="interview-workspace">
-      <button className="text-link" onClick={() => { setSession(null); setError(''); void loadInterviews(); }} type="button"><ArrowLeft size={14} /> All practice sessions</button>
-      <div className="interview-live-head"><div><div className="section-kicker">TEXT INTERVIEW · {difficulty.toUpperCase()} PRACTICE</div><h1>{question ? 'Take a moment. Then make it yours.' : 'You’ve answered every prompt.'}</h1><p>{question ? 'Use your own experience. There is no timer, and your draft stays in the box until you send it.' : 'Your final answer is safely recorded. Generate the answer report when you are ready.'}</p></div><div className="interview-live-count"><strong>{Math.min(answeredCount + (question ? 1 : 0), questionCount || 1).toString().padStart(2, '0')}</strong><span>/ {questionCount.toString().padStart(2, '0')} prompts</span></div></div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <button className="text-link" onClick={() => { speech.stop(); window.speechSynthesis?.cancel(); setSession(null); setError(''); void loadInterviews(); }} type="button"><ArrowLeft size={14} /> All practice sessions</button>
+        {speech.supported && (
+          <div className="voice-mode-toggle">
+            <button
+              className={`voice-toggle-btn ${voiceMode ? 'voice-active' : ''}`}
+              onClick={() => {
+                const next = !voiceMode;
+                setVoiceMode(next);
+                if (!next) { speech.stop(); window.speechSynthesis?.cancel(); }
+                else if (question) speak(question.question);
+              }}
+              type="button"
+            >
+              <Volume2 size={14} /> {voiceMode ? 'Voice ON' : 'Voice OFF'}
+            </button>
+            <span className="voice-mode-hint">{voiceMode ? 'Questions read aloud. Use mic to answer.' : 'Enable for verbal face-to-face mode'}</span>
+          </div>
+        )}
+      </div>
+      <div className="interview-live-head">
+        <div>
+          <div className="section-kicker">{voiceMode ? '🎙 VERBAL INTERVIEW' : 'TEXT INTERVIEW'} · {difficulty.toUpperCase()} PRACTICE</div>
+          <h1>{question ? 'Take a moment. Then make it yours.' : 'You\'ve answered every prompt.'}</h1>
+          <p>{question ? 'Use your own experience. There is no timer, and your draft stays in the box until you send it.' : 'Your final answer is safely recorded. Generate the answer report when you are ready.'}</p>
+        </div>
+        <div className="interview-live-count"><strong>{Math.min(answeredCount + (question ? 1 : 0), questionCount || 1).toString().padStart(2, '0')}</strong><span>/ {questionCount.toString().padStart(2, '0')} prompts</span></div>
+      </div>
       <div className="interview-progress-track" aria-label={`${progress}% complete`}><i style={{ width: `${progress}%` }} /></div>
       {error && <div className="resume-error" role="alert">{error}</div>}
-      {question ? <div className="interview-live-grid"><section className="panel interview-prompt-panel"><div className="interview-prompt-meta"><span><CircleDot size={13} /> QUESTION {String(question.position + 1).padStart(2, '0')}</span><span>Take your time</span></div><h2>{question.question}</h2><label className="interview-answer-label" htmlFor="interview-answer">Your response</label><textarea id="interview-answer" maxLength={20000} onChange={(event) => setAnswer(event.target.value)} placeholder="Start with the context. What did you do, why did you choose it, and what happened next?" value={answer} /><div className="interview-answer-foot"><span>{answer.length.toLocaleString()} / 20,000</span><button className="practice-button" disabled={!answer.trim() || busy} onClick={() => { void saveAnswer(); }} type="button">Save & continue <ArrowRight size={15} /></button></div></section><aside className="interview-coach-rail"><div className="interview-coach-icon"><MessageSquareText size={18} /></div><div className="section-kicker">A THOUGHTFUL ANSWER</div><h3>Show your fingerprints.</h3><p>Make your own decisions visible. A small, true detail beats a polished answer that could belong to anyone.</p><ol><li><span>01</span>Context</li><li><span>02</span>Your action</li><li><span>03</span>What changed</li></ol><div className="interview-coach-note"><Sparkles size={14} /> Metrics are useful only when they are real.</div></aside></div> : <section className="panel interview-finish-panel"><div className="interview-finish-mark"><Trophy size={21} /></div><div><h2>Ready to see the signal?</h2><p>Your report includes evidence quotes, strengths, and one practical next step for each answer.</p></div><button className="practice-button" disabled={busy} onClick={() => { void finishInterview(); }} type="button">Build my report <ArrowRight size={15} /></button></section>}
+      {question ? (
+        <div className="interview-live-grid">
+          <section className="panel interview-prompt-panel">
+            <div className="interview-prompt-meta">
+              <span><CircleDot size={13} /> QUESTION {String(question.position + 1).padStart(2, '0')}</span>
+              {voiceMode
+                ? <button className="text-link" onClick={() => speak(question.question)} type="button"><Volume2 size={13} /> Read aloud</button>
+                : <span>Take your time</span>}
+            </div>
+            <h2>{question.question}</h2>
+            {voiceMode && (
+              <div className="voice-answer-controls">
+                <button
+                  className={`voice-mic-btn ${speech.listening ? 'mic-listening' : ''}`}
+                  onClick={() => speech.listening ? speech.stop() : speech.start()}
+                  type="button"
+                >
+                  {speech.listening ? <><MicOff size={16} /> Stop recording</> : <><Mic size={16} /> Start speaking</>}
+                </button>
+                {speech.listening && <span className="voice-listening-indicator"><span className="voice-pulse" />Listening…</span>}
+              </div>
+            )}
+            <label className="interview-answer-label" htmlFor="interview-answer">{voiceMode ? 'Transcribed answer (edit if needed)' : 'Your response'}</label>
+            <textarea id="interview-answer" maxLength={20000} onChange={(event) => setAnswer(event.target.value)} placeholder={voiceMode ? 'Your spoken answer will appear here…' : 'Start with the context. What did you do, why did you choose it, and what happened next?'} value={answer} />
+            <div className="interview-answer-foot"><span>{answer.length.toLocaleString()} / 20,000</span><button className="practice-button" disabled={!answer.trim() || busy} onClick={() => { speech.stop(); void saveAnswer(); }} type="button">Save & continue <ArrowRight size={15} /></button></div>
+          </section>
+          <aside className="interview-coach-rail"><div className="interview-coach-icon"><MessageSquareText size={18} /></div><div className="section-kicker">A THOUGHTFUL ANSWER</div><h3>Show your fingerprints.</h3><p>Make your own decisions visible. A small, true detail beats a polished answer that could belong to anyone.</p><ol><li><span>01</span>Context</li><li><span>02</span>Your action</li><li><span>03</span>What changed</li></ol><div className="interview-coach-note"><Sparkles size={14} /> Metrics are useful only when they are real.</div></aside>
+        </div>
+      ) : (
+        <section className="panel interview-finish-panel"><div className="interview-finish-mark"><Trophy size={21} /></div><div><h2>Ready to see the signal?</h2><p>Your report includes evidence quotes, strengths, and one practical next step for each answer.</p></div><button className="practice-button" disabled={busy} onClick={() => { void finishInterview(); }} type="button">Build my report <ArrowRight size={15} /></button></section>
+      )}
     </section>;
   }
 
   return <section className="interview-workspace">
-    <div className="interview-page-heading"><div><div className="section-kicker">MOCK INTERVIEW STUDIO</div><h1>Practice the story behind your skills.</h1><p>Short, resume-aware text sessions. Your answers stay yours; the feedback points to evidence, not invented credentials.</p></div><div className="interview-studio-mark"><BrainCircuit size={25} /><span>PLACEPREP<br />PRACTICE LAB</span></div></div>
+    <div className="interview-page-heading"><div><div className="section-kicker">MOCK INTERVIEW STUDIO</div><h1>Practice the story behind your skills.</h1><p>Short, resume-aware sessions. Text or verbal — your answers stay yours; the feedback points to evidence, not invented credentials.</p></div><div className="interview-studio-mark"><BrainCircuit size={25} /><span>PLACEPREP<br />PRACTICE LAB</span></div></div>
     {error && <div className="resume-error" role="alert">{error}</div>}
-    <div className="interview-start-grid"><section className="panel interview-setup-panel"><div className="section-heading"><div><div className="section-kicker">BUILD A PRACTICE SESSION</div><h2>Choose your room</h2></div><span className="interview-private-label">PRIVATE</span></div><div className="interview-kind-grid">{interviewKinds.map((item) => <button aria-pressed={kind === item.value} className={`interview-kind-option ${kind === item.value ? 'kind-selected' : ''}`} key={item.value} onClick={() => setKind(item.value)} type="button"><span className="kind-dot" /><strong>{item.label}</strong><small>{item.description}</small></button>)}</div><div className="interview-setup-fields"><label>Target role<select onChange={(event) => setRoleId(event.target.value)} value={roleId}><option value="">General practice</option>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label><label>Difficulty<select onChange={(event) => setDifficulty(event.target.value as typeof difficulty)} value={difficulty}><option value="easy">Warm-up</option><option value="medium">Focused</option><option value="hard">Stretch</option></select></label></div><button className="practice-button interview-start-button" disabled={busy} onClick={() => { void startInterview(); }} type="button">{busy ? <LoaderCircle className="spinner" size={15} /> : <Plus size={15} />} Start a text interview <ArrowRight size={15} /></button><p className="interview-setup-note">Text mode is available now. Voice and video practice are not enabled yet.</p></section><aside className="interview-studio-aside"><div className="interview-aside-number">{completedCount.toString().padStart(2, '0')}</div><div className="section-kicker">SESSIONS COMPLETED</div><h2>Progress comes from specifics.</h2><p>Try one answer twice: first naturally, then with a clearer context, decision, and outcome.</p><div className="interview-aside-rule" /><div className="interview-aside-footer"><Sparkles size={15} /><span>Private practice.<br />Honest feedback.</span></div></aside></div>
+    <div className="interview-start-grid"><section className="panel interview-setup-panel"><div className="section-heading"><div><div className="section-kicker">BUILD A PRACTICE SESSION</div><h2>Choose your room</h2></div><span className="interview-private-label">PRIVATE</span></div><div className="interview-kind-grid">{interviewKinds.map((item) => <button aria-pressed={kind === item.value} className={`interview-kind-option ${kind === item.value ? 'kind-selected' : ''}`} key={item.value} onClick={() => setKind(item.value)} type="button"><span className="kind-dot" /><strong>{item.label}</strong><small>{item.description}</small></button>)}</div><div className="interview-setup-fields"><label>Target role<select onChange={(event) => setRoleId(event.target.value)} value={roleId}><option value="">General practice</option>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label><label>Difficulty<select onChange={(event) => setDifficulty(event.target.value as typeof difficulty)} value={difficulty}><option value="easy">Warm-up</option><option value="medium">Focused</option><option value="hard">Stretch</option></select></label></div><button className="practice-button interview-start-button" disabled={busy} onClick={() => { void startInterview(); }} type="button">{busy ? <LoaderCircle className="spinner" size={15} /> : <Plus size={15} />} Start interview <ArrowRight size={15} /></button><p className="interview-setup-note">🎙 After starting, toggle <strong>Voice ON</strong> to answer by speaking. Questions are read aloud automatically.</p></section><aside className="interview-studio-aside"><div className="interview-aside-number">{completedCount.toString().padStart(2, '0')}</div><div className="section-kicker">SESSIONS COMPLETED</div><h2>Progress comes from specifics.</h2><p>Try one answer twice: first naturally, then with a clearer context, decision, and outcome.</p><div className="interview-aside-rule" /><div className="interview-aside-footer"><Sparkles size={15} /><span>Private practice.<br />Honest feedback.</span></div></aside></div>
     <div className="interview-history-heading"><div><div className="section-kicker">YOUR PRACTICE LOG</div><h2>Recent sessions</h2></div><span>{interviews.length} total</span></div>
     {interviews.length ? <div className="interview-history-list">{interviews.map((item) => <article className="panel interview-history-card" key={item.id}><div className={`interview-history-icon ${item.status === 'completed' ? 'history-complete' : ''}`}>{item.status === 'completed' ? <CheckCircle2 size={17} /> : <MessageSquareText size={17} />}</div><div className="interview-history-copy"><strong>{interviewKinds.find((choice) => choice.value === item.interview_type)?.label ?? 'Practice interview'}</strong><span>{item.role_name ?? 'General practice'} · {item.difficulty} · {new Date(item.started_at).toLocaleDateString()}</span></div><span className={`interview-status ${item.status === 'completed' ? 'status-complete' : ''}`}>{item.status === 'completed' ? 'Report ready' : 'In progress'}</span>{item.status === 'completed' ? <button aria-label="Open interview report" className="round-arrow" onClick={() => { void openReport(item.id); }} type="button"><ArrowRight size={16} /></button> : <button className="date-button" onClick={() => { void openInterview(item.id, item.question_count); }} type="button">Resume <ArrowRight size={14} /></button>}</article>)}</div> : <div className="interview-empty-state"><span><MessageSquareText size={19} /></span><div><strong>Your practice log starts here.</strong><p>Complete a session and your answer patterns will be ready to revisit.</p></div></div>}
     <div className="interview-privacy-note"><Target size={14} /> Practice recommendations are heuristic guidance, not hiring decisions. No protected traits are used.</div>

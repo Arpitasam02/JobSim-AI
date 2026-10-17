@@ -9,6 +9,7 @@ import { createRoleRouter } from './roles/routes.js';
 import { createAssessmentRouter } from './assessments/routes.js';
 import { createInterviewRouter } from './interviews/routes.js';
 import { createApplicationDecisionRouter, createCandidateJobsRouter, createRecruiterJobsRouter } from './jobs/routes.js';
+import { createStreakRouter, createChallengeRouter, createNotificationRouter, createSavedJobsRouter, createPreferencesRouter } from './features/routes.js';
 import { classifyDatabaseConnectionError, withTransientDbRetry } from './db.js';
 
 function redactErrorText(value: string | undefined) {
@@ -86,6 +87,11 @@ export function createApp(pool: Pool, accessSecret: string) {
   app.use('/api/v1/jobs', createCandidateJobsRouter(pool, accessSecret));
   app.use('/api/v1/recruiter', createRecruiterJobsRouter(pool, accessSecret));
   app.use('/api/v1/applications', createApplicationDecisionRouter(pool, accessSecret));
+  app.use('/api/v1/streak', createStreakRouter(pool, accessSecret));
+  app.use('/api/v1/challenges', createChallengeRouter(pool, accessSecret));
+  app.use('/api/v1/notifications', createNotificationRouter(pool, accessSecret));
+  app.use('/api/v1/saved-jobs', createSavedJobsRouter(pool, accessSecret));
+  app.use('/api/v1/preferences', createPreferencesRouter(pool, accessSecret));
 
   app.use((_request, response) => {
     response.status(404).json({
